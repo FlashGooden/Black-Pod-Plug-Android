@@ -4,7 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
+import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsParameter
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.analytics.experiments.ExperimentProvider
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
@@ -12,6 +12,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.repositories.subscription.SubscriptionManager
 import au.com.shiftyjelly.pocketcasts.repositories.sync.LoginResult
 import au.com.shiftyjelly.pocketcasts.repositories.sync.SyncManager
+import au.com.shiftyjelly.pocketcasts.settings.onboarding.OnboardingFlow
 import au.com.shiftyjelly.pocketcasts.utils.Network
 import au.com.shiftyjelly.pocketcasts.utils.extensions.isGooglePlayServicesAvailableSuccess
 import com.google.android.gms.common.GoogleApiAvailability
@@ -51,12 +52,42 @@ class OnboardingCreateAccountViewModel @Inject constructor(
     )
     val stateFlow: StateFlow<OnboardingCreateAccountState> = _stateFlow
 
-    fun onShown() {
-        analyticsTracker.track(AnalyticsEvent.CREATE_ACCOUNT_SHOWN)
+    fun onSetupAccountShown(flow: OnboardingFlow) {
+        analyticsTracker.trackSetupAccountShown(
+            flow = flow.analyticsValue,
+        )
     }
 
-    fun onBackPressed() {
-        analyticsTracker.track(AnalyticsEvent.CREATE_ACCOUNT_DISMISSED)
+    fun onCreateAccountShown(flow: OnboardingFlow) {
+        analyticsTracker.trackCreateAccountShown(
+            flow = flow.analyticsValue,
+        )
+    }
+
+    fun onSetupAccountDismissed(flow: OnboardingFlow) {
+        analyticsTracker.trackSetupAccountDismissed(
+            flow = flow.analyticsValue,
+        )
+    }
+
+    fun onCreateAccountDismissed(flow: OnboardingFlow) {
+        analyticsTracker.trackCreateAccountDismissed(
+            flow = flow.analyticsValue,
+        )
+    }
+
+    fun onSignUpEmailPressed(flow: OnboardingFlow) {
+        analyticsTracker.trackSetupAccountButtonTapped(
+            flow = flow.analyticsValue,
+            button = AnalyticsParameter.SetupAccountButton.CreateAccount,
+        )
+    }
+
+    fun onLogInPressed(flow: OnboardingFlow) {
+        analyticsTracker.trackSetupAccountButtonTapped(
+            flow = flow.analyticsValue,
+            button = AnalyticsParameter.SetupAccountButton.SignIn,
+        )
     }
 
     fun updateEmail(email: String) {
@@ -82,7 +113,7 @@ class OnboardingCreateAccountViewModel @Inject constructor(
             )
         }
 
-        subscriptionManager.clearCachedSubscription()
+        subscriptionManager.clearCachedMembership()
 
         viewModelScope.launch {
             val result = syncManager.createUserWithEmailAndPassword(

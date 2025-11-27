@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.wear.compose.material.Text
 import au.com.shiftyjelly.pocketcasts.compose.CallOnce
 import au.com.shiftyjelly.pocketcasts.compose.images.SubscriptionBadge
@@ -53,6 +53,7 @@ fun RequirePlusScreen(
                 SubscriptionBadge(
                     iconRes = IR.drawable.ic_plus,
                     shortNameRes = LR.string.pocket_casts_plus_short,
+                    contentDescriptionRes = LR.string.pocket_casts_plus_badge,
                     iconColor = Color.Black,
                     backgroundColor = colorResource(UR.color.plus_gold),
                     textColor = Color.Black,

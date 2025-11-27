@@ -13,8 +13,6 @@ import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.repositories.user.StatsManager
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
 import au.com.shiftyjelly.pocketcasts.utils.Gravatar
-import au.com.shiftyjelly.pocketcasts.utils.featureflag.Feature
-import au.com.shiftyjelly.pocketcasts.utils.featureflag.FeatureFlag
 import au.com.shiftyjelly.pocketcasts.utils.toDurationFromNow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -29,7 +27,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.reactive.asFlow
-import kotlinx.coroutines.rx2.asFlow
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -79,7 +76,7 @@ class ProfileViewModel @Inject constructor(
 
     internal val profileStatsState = combine(
         refreshStatsTrigger.onStart { emit(Unit) },
-        podcastManager.countSubscribedRxFlowable().asFlow(),
+        podcastManager.countSubscribedFlow(),
     ) { _, count ->
         ProfileStatsState(
             podcastsCount = count,
@@ -111,7 +108,7 @@ class ProfileViewModel @Inject constructor(
         signInState.map { it.isSignedIn },
         settings.isFreeAccountProfileBannerDismissed.flow,
     ) { isSignedIn, isBannerDismissed ->
-        !isSignedIn && !isBannerDismissed && FeatureFlag.isEnabled(Feature.ENCOURAGE_ACCOUNT_CREATION)
+        !isSignedIn && !isBannerDismissed
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -145,6 +142,13 @@ class ProfileViewModel @Inject constructor(
 
     internal fun refreshStats() {
         refreshStatsTrigger.tryEmit(Unit)
+    }
+
+    internal fun onEndOfYearCardShown() {
+        tracker.track(
+            AnalyticsEvent.END_OF_YEAR_PROFILE_CARD_SHOWN,
+            mapOf("year" to EndOfYearManager.YEAR_TO_SYNC.value),
+        )
     }
 
     internal fun onPlaybackClick() {

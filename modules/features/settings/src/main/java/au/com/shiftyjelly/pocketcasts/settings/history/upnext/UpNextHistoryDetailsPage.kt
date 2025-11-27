@@ -27,7 +27,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import au.com.shiftyjelly.pocketcasts.compose.AppThemeWithBackground
 import au.com.shiftyjelly.pocketcasts.compose.Devices
@@ -93,6 +93,7 @@ private fun UpNextHistoryDetailsView(
         )
         when (state) {
             is UiState.Loading -> LoadingView()
+
             is UiState.Loaded -> {
                 UpNextHistoryEpisodes(
                     state = state,

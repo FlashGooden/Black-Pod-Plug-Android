@@ -1,17 +1,137 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-Translation-Revision-Date: 2025-08-12 09:54:04+0000
+Translation-Revision-Date: 2025-11-13 09:54:05+0000
 Plural-Forms: nplurals=1; plural=0;
 Generator: GlotPress/2.4.0-alpha
 Language: ja_JP
 -->
 <resources>
+    <string name="eoy_story_ratings_subtitle_no_ratings">お気に入りのクリエイターが注目されるよう、好きなことを共有して応援しよう</string>
+    <string name="eoy_story_ratings_subtitle_2">レビューは魅力的な番組が注目を集めるのに役立ちます</string>
+    <string name="eoy_story_ratings_subtitle_1">世界中のクリエイターが愛を大切にしています</string>
+    <string name="eoy_story_ratings_title_no_ratings">今のところ評価はありませんが、まだ時間はあります。</string>
+    <string name="eoy_story_ratings_title_2">フィードバックを共有いただきありがとうございます。</string>
+    <string name="eoy_story_ratings_title_1">まるで紙吹雪のように%1$dつ星評価をつけました !</string>
+    <string name="end_of_year_listening_time_subtitle">聴取分数</string>
+    <string name="end_of_year_stories_year_over_year_subtitle_went_down">でも、量より質が大事ですよね</string>
+    <string name="end_of_year_stories_year_over_year_title_went_down">今年の聴取時間が%1$s%%減少しました</string>
+    <string name="end_of_year_stories_year_over_year_subtitle_flat">コーヒーショップでの注文のように、いつも変わらず、頼りになる存在です</string>
+    <string name="end_of_year_stories_year_over_year_title_flat">%1$sの聴取時間は変わりませんでした</string>
+    <string name="end_of_year_stories_year_over_year_subtitle_went_up_a_lot">今年は500%以上聴いたんですね – クラブへようこそ</string>
+    <string name="end_of_year_stories_year_over_year_title_went_up_a_lot">ゼロからヒーローへ !</string>
+    <string name="settings_storage_normalize_episode_titles_description">ステータス: %1$s\nアプリの一部では、正規化されたタイトルが必要となるエピソード検索が使用されています。 この設定をタップすると、エピソードがまだ正規化されていない場合にデータベースの正規化が実行されます。</string>
+    <string name="settings_storage_normalize_episode_titles">エピソードタイトルを正規化</string>
+    <string name="normalization_started">正規化を開始しました</string>
+    <string name="not_normalized">正規化されていません</string>
+    <string name="normalized">正規化</string>
+    <string name="database">データベース</string>
+    <string name="end_of_year_story_top_podcast_stats_hours">%1$s と %2$s。\nこれはコミットメントです。</string>
+    <string name="end_of_year_story_top_podcast_stats_days">%1$s、%2$s および%3$s です。\nこれはコミットメントです。</string>
+    <string name="end_of_year_story_top_podcast_subtitle">これ以上に「あなたらしい」ものはありません</string>
+    <string name="app_rating_yes_label">はい。</string>
+    <string name="app_rating_no_label">そこまででない</string>
+    <string name="app_rating_body">こんにちは。 \u00A0 アプリをお楽しみいただいているかどうかお知らせください。</string>
+    <string name="app_rating_title">Pocket\u00A0Casts を楽しんでいますか ?</string>
+    <string name="end_of_year_story_epilogue_subtitle">プレイバックを友達と共有しましょう。1年間あなたを盛り上げてくれたポッドキャスターたちに感謝の気持ちを伝えましょう</string>
+    <string name="end_of_year_story_epilogue_title">1年間 Pocket\u00A0Casts をご愛顧いただきありがとうございます</string>
+    <string name="end_of_year_stories_year_completion_rate_subtitle">開始した%2$d件のエピソードのうち、%1$d件を完了しました。\nほとんどのジム会員よりもフォロースルーが強力です。</string>
+    <string name="search_suggestions_no_results_message">新しい検索を試すか、ポッドキャストフィードの URL を追加してください</string>
+    <string name="search_suggestions_no_results_title">結果はありません</string>
+    <string name="eoy_playback_intro_title">ポッドキャストで振り返る1年\n振り返る準備は万端</string>
+    <string name="search_suggestions_view_all">「%1$s」のすべてを表示</string>
+    <string name="up_next_as_playlist_saved">「次のエピソード」をプレイリストとして保存しました</string>
+    <string name="up_next_as_playlist_button_secondary">置換して再生</string>
+    <string name="delete_playlist_confirmation_title">プレイリストを削除しますか ?</string>
+    <string name="delete_playlist_confirmation_body">プレイリストを削除してもよいですか ? この操作を元に戻すことはできません。</string>
+    <string name="delete_playlist">プレイリストを削除</string>
+    <string name="view">表示</string>
+    <string name="browse_podcasts">ポッドキャストを参照</string>
+    <string name="rearrange_playlists_tooltip_title">プレイリストを並べ替え</string>
+    <string name="rearrange_playlists_tooltip_body">プレイリストを移動するには、長押しします。</string>
+    <string name="play_all_no_episodes_message">全エピソードをアーカイブしました。 再生するには、追加またはアーカイブを解除してください。</string>
+    <string name="onboarding_upgrade_features_transcripts">生成されたトランスクリプト</string>
+    <string name="search_filters_top_results">上位の結果</string>
+    <string name="player_sleep_in_one_chapter">現在のチャプターの最後でスリープ</string>
+    <string name="player_sleep_in_one_episode">現在のエピソードの最後でスリープ</string>
+    <string name="player_sleep_timer_end_of_chapter">チャプター終了時</string>
+    <string name="winback_cancel_subscription_stay_button_label">サブスクリプションを継続</string>
+    <string name="player_up_next_sort">次のエピソードを並べ替え</string>
+    <string name="filter_title">プレイリストのタイトル</string>
+    <string name="filter_id">プレイリスト ID</string>
+    <string name="filters_filter_name">プレイリスト名</string>
+    <string name="playlists_not_found">プレイリストが見つかりません</string>
+    <string name="notification_filters_message_2">プレイリストを作成してエピソードを整理します。</string>
+    <string name="settings_status_service_account_summary_2">エピソードの進捗、フォローするポッドキャスト、プレイリストなどを保存するために使用するサービスです。</string>
+    <string name="settings_choose_playlists">プレイリストを選択</string>
+    <string name="number_one">1</string>
+    <string name="settings_auto_download_playlists">プレイリストを自動ダウンロード</string>
+    <string name="playlists_selected_all">すべてのプレイリストを選択済み</string>
+    <string name="podcasts_selected_all">すべてのポッドキャストを選択済み</string>
+    <string name="smart_playlists">スマートプレイリスト</string>
+    <string name="select_smart_playlists">スマートプレイリストを選択</string>
+    <string name="podcast_not_in_playlists">どのスマートプレイリストにも含まれない</string>
+    <string name="add_to_playlist_no_playlist_found_title">プレイリストに追加</string>
+    <string name="add_to_playlist_no_playlist_found_body">その検索に該当するプレイリストは見つかりませんでした。 新しいプレイリストを作成するか、別のキーワードをお試しください。</string>
+    <string name="add_to_playlist_find_playlist">プレイリストを検索</string>
+    <string name="add_to_playlist_description">プレイリストに追加</string>
+    <string name="remove_from_playlist">プレイリストから削除</string>
+    <string name="add_to_up_next_bottom">「次のエピソード待機リスト」の下部に追加</string>
+    <string name="add_to_up_next_top">「次のエピソード待機リスト」の上部に追加</string>
+    <string name="playlist_episodes_archived_title">エピソードなし</string>
+    <string name="playlist_episodes_archived_count">%1$d件をアーカイブ済み</string>
+    <string name="playlist_episode_unavailable_cta">プレイリストから削除</string>
+    <string name="playlist_episode_unavailable_description">ポッドキャスト作成者がこのエピソードを削除しました。 あなたが削除するまでは、ご自身のプレイリストに残ります。</string>
+    <string name="playlist_episode_unavailable_title">エピソードが利用できません</string>
+    <string name="episode_sort_custom_order">カスタムオーダー</string>
+    <string name="manual_playlist_search_no_podcast_or_folder_body">その検索に該当するポッドキャストまたはフォルダーは見つかりませんでした。 別のキーワードを試してください。</string>
+    <string name="manual_playlist_search_no_podcast_title">ポッドキャストが見つかりません</string>
+    <string name="manual_playlist_search_no_podcast_body">その検索に該当するポッドキャストは見つかりませんでした。 別のキーワードを試してください。</string>
+    <string name="manual_playlist_no_available_episode_title">利用可能なエピソードはありません</string>
+    <string name="manual_playlist_no_available_episode_body">この番組のすべてのエピソードが追加されたようです。</string>
+    <string name="manual_playlist_no_content_title_alternative">プレイリストの構築を開始</string>
+    <string name="manual_playlist_no_content_title">プレイリストにエピソードを追加</string>
+    <string name="manual_playlist_no_content_body">エピソードを左にスワイプしてプレイリストに追加します。</string>
+    <string name="unavailable">利用できません</string>
+    <string name="add_to_playlist_failure_message">このプレイリストはいっぱいです。 エピソードをいくつか削除するか、新しいエピソードを開始します。</string>
+    <string name="added_to_playlist">%1$s を「%2$s」に追加しました</string>
+    <string name="add_to_playlist_episode_desc">%1$sをプレイリストに追加</string>
+    <string name="add_to_playlist">「%1$s」に追加</string>
+    <string name="your_podcasts">あなたのポッドキャスト</string>
+    <string name="onboarding_recommendations_message">初めてのご利用にぴったりの番組を紹介します。 タップしてフォロー、検索、他のアプリからインポートします。</string>
+    <string name="onboarding_recommendations_title">おすすめの番組をぜひお楽しみください。</string>
+    <string name="add_episodes">すべてのエピソード</string>
+    <string name="onboarding_interests_select_at_least_label">3つ以上選択</string>
+    <string name="onboarding_interests_show_more">カテゴリーをさらに表示</string>
+    <string name="onboarding_interests_description">人間が選んだ素晴らしいポッドキャストをお届けします !</string>
+    <string name="onboarding_interests_title">お気に入りのトピックについて教えてください</string>
+    <string name="onboarding_create_account_sign_up_google">Google で登録</string>
+    <string name="onboarding_create_account_sign_up_email">メールアドレスで登録</string>
+    <string name="onboarding_create_account_message">ポッドキャストは常に同期されます。 ライブラリを安全に保ち、ウェブとデスクトップで Pocket\u00A0Casts をお楽しみください。</string>
+    <string name="onboarding_create_account_title">Pocket\u00A0Casts アカウントを作成</string>
+    <string name="onboarding_login_or">または</string>
+    <string name="onboarding_login_continue_with_email">メールで続ける</string>
+    <string name="playlist_artwork_description">プレイリストのアートワーク</string>
+    <string name="onboarding_intro_get_started">開始する</string>
+    <string name="onboarding_intro_carousel_pc_user">Pocket Casts ユーザー</string>
+    <string name="onboarding_intro_carousel_organizing_podcasts_title">「ポッドキャストをフォルダー別に整理できるのがすばらしい」</string>
+    <string name="onboarding_intro_carousel_customization_insane_title">「カスタマイズの幅は驚くほどです」</string>
+    <string name="onboarding_intro_carousel_best_app_title">「これまでで最高の ポッドキャストアプリ」</string>
+    <string name="transcript_share">トランスクリプトを共有</string>
+    <string name="onboarding_notifications_popup_save">設定を保存</string>
+    <string name="onboarding_notification_popup_notifications_message">ニュースやポッドキャストの提案などを受け取る</string>
+    <string name="onboarding_notification_popup_notifications">通知を受け取る</string>
+    <string name="onboarding_notification_popup_newsletter_message">月に1回、良質なポッドキャストをお届け</string>
+    <string name="onboarding_notification_popup_newsletter">ニュースレターを購読</string>
+    <string name="playlist_setting_auto_download_description">有効化すると、このプレイリストのエピソードを自動ダウンロードできます。</string>
+    <string name="smart_rule_starred_label">星付きエピソード</string>
+    <string name="smart_rule_starred_description_disabled">星付きエピソードは、他のルールと一致する場合にも引き続き表示できます。</string>
+    <string name="smart_rule_starred_description">他のルールに一致する星付きエピソードのみを含めます。</string>
+    <string name="playlist_sort_by">並べ替え基準</string>
+    <string name="playlist_select_episodes">エピソードを選択</string>
+    <string name="playlist_options">プレイリストのオプション</string>
     <string name="smart_playlist_no_content_body">リストにあるすべてのエピソードを再生しました。ルールを編集してさらに追加しますか ?</string>
     <string name="smart_playlist_no_content_title">エピソードなし</string>
-    <string name="playlist_play_all">すべてを再生</string>
     <string name="smart_rules">スマートルール</string>
-    <string name="smart_rule_podcasts_deselect_all">すべて選択解除</string>
-    <string name="smart_rule_podcasts_select_all">すべて選択</string>
     <string name="smart_rule_podcasts_all_description_disabled">新たにフォローするポッドキャストは自動的に追加されません。</string>
     <string name="onboarding_upgrade_pp">プライバシー\u00A0ポリシー</string>
     <string name="onboarding_upgrade_tnc">利用\u00A0\u00A0規約</string>
@@ -33,7 +153,6 @@ Language: ja_JP
     <string name="save_smart_rule">スマートルールを保存</string>
     <string name="smart_rule_podcasts_all_description">新たにフォローするポッドキャストは自動的に追加されます。</string>
     <string name="smart_rule_podcasts_all_label">フォロー中のすべてのポッドキャスト</string>
-    <string name="smart_rule_podcasts_title">ポッドキャストを選択</string>
     <string name="onboarding_bookmarks_title">ブックマーク: お気に入りの箇所を保存します</string>
     <string name="smart_rules_description">スマートルールを設定して、スマートプレイリストにエピソードを自動的に追加します。</string>
     <string name="create_smart_playlist">スマートプレイリストを作成</string>
@@ -42,6 +161,7 @@ Language: ja_JP
     <string name="create_playlist">プレイリストを作成</string>
     <string name="new_smart_playlist_banner_body">ルールに基づいてエピソードを自動追加</string>
     <string name="new_smart_playlist_banner_title">スマートプレイリストを作成</string>
+    <string name="new_playlists_title_placeholder">プレイリストの名前</string>
     <string name="onboarding_folders_title_3">スポーツ</string>
     <string name="onboarding_folders_title_2">お気に入り</string>
     <string name="onboarding_folders_title_1">書籍</string>
@@ -280,7 +400,6 @@ Language: ja_JP
     <string name="settings_pixel_watch_title">Pixel Watch スキップボタン</string>
     <string name="settings_pixel_watch_subtitle">標準の「次 / 前」トラックボタンをカスタムスキップボタンに置き換え、スキップボタンとして機能するようにすると、互換できる端末が増えます。</string>
     <string name="winback_cancel_subscription_cancel_button_label">はい、サブスクリプションをキャンセルします</string>
-    <string name="winback_cancel_subscription_stay_button_label">利用を続けます</string>
     <string name="winback_cancel_subscription_perk_files">Pocket Casts アカウントにアップロードされたファイルはすべて削除されます (ただし、モバイルデバイスにダウンロードされたファイルは残ります)。</string>
     <string name="winback_cancel_subscription_perk_folders">フォルダーは消去され、保存されているコンテンツは再びポッドキャスト画面に移動します。</string>
     <string name="winback_cancel_subscription_perk_active_without_date">現在のサブスクリプションは有効期限日まで有効です。</string>
@@ -333,7 +452,7 @@ Language: ja_JP
     <string name="icons_plus_prompt">Pocket Casts Plus で専用アプリアイコンの取得などを利用しましょう</string>
     <string name="themes_plus_prompt">Pocket Casts Plus で専用テーマの取得などを利用しましょう</string>
     <string name="folders_plus_prompt">Pocket Casts Plus でポッドキャストの整理などを利用しましょう</string>
-    <string name="end_of_year_story_top_podcast_title">こちらが%1$dにあなたが一番再生したポッドキャストです</string>
+    <string name="end_of_year_story_top_podcast_title">%1$d の人気ポッドキャスト</string>
     <string name="drag_down_to_dismiss_content_description">下にドラッグして閉じる</string>
     <string name="maybe_later">後で</string>
     <string name="need_to_free_up_space">容量を空ける必要がありますか ?</string>
@@ -359,24 +478,14 @@ Language: ja_JP
     <string name="up_next_shuffle_disable_button_content_description">次のシャッフルの無効化</string>
     <string name="up_next_shuffle_button_content_description">次のシャッフル</string>
     <string name="podcast_ratings_page_title">評価機能</string>
-    <string name="eoy_story_stories_subscribe_to_plus_button_label">Pocket Casts Plus をチェック</string>
-    <string name="end_of_year_stories_subscribe_to_plus">Plus にサブスクリプションして Pocket Casts をサポートし、より多くの統計情報や、ブックマーク、フォルダー、チャプターの事前選択などのプレミアム機能を手に入れましょう。</string>
     <string name="settings_real_time_playback_summary">オンにすると、再生速度とスキップされたチャプターに合わせて調整された残り時間がプレーヤーに表示されます。</string>
     <string name="settings_real_time_playback">残り時間を調整</string>
-    <string name="end_of_year_stories_year_over_year_title_went_up_a_lot">%1$sと比較して、聴取時間が500%%以上増加しました</string>
-    <string name="end_of_year_story_longest_episode_subtitle">「%2$s」の「%1$s」でした</string>
-    <string name="end_of_year_listening_time_subtitle">ポッドキャストを聴いた合計</string>
     <string name="eoy_story_ratings_learn_button_label">評価について</string>
-    <string name="eoy_story_ratings_subtitle_3">番組を評価できるようになったことをご存知ですか ? お気に入りのクリエイターへの熱い思いを共有し、そのクリエイターが注目されるよう支援しましょう。</string>
-    <string name="eoy_story_ratings_subtitle_2">クリエイターコミュニティにフィードバックを共有していただき、ありがとうございます</string>
-    <string name="eoy_story_ratings_subtitle_1">%1$dつ星評価がとても多いですね ! お気に入りのクリエイターへの熱い思いを共有していただき、ありがとうございます。</string>
-    <string name="eoy_story_ratings_title_2">おっと ! 表示するポッドキャストの評価はまだありません</string>
-    <string name="eoy_story_ratings_title_1">あなたの評価を確認しましょう。</string>
     <string name="referrals_failed_to_load_offer">申し訳ありません、リファラルリンクの取得中にエラーが発生しました。</string>
     <string name="transcript_error_not_available">申し訳ありません、このエピソードではトランスクリプトを利用できません。</string>
     <string name="referrals_banner_hide_label">このバナーを非表示</string>
     <string name="referrals_banner_long_press_label">リファラル取得パスのバナーを非表示にします。</string>
-    <string name="end_of_year_prompt_card_title">プレイバック2024\nはこちら !</string>
+    <string name="end_of_year_prompt_card_title">今年を振り返るときがやってきました !</string>
     <string name="settings_auto_download_limit_auto_downloads">自動ダウンロードを制限</string>
     <string name="settings_auto_download_limit_all_latest_episodes">すべての最新エピソード</string>
     <string name="settings_auto_download_limit_ten_latest_episode">10件の最新エピソード</string>
@@ -516,7 +625,6 @@ Language: ja_JP
     <string name="hours_and_minutes">%d時間%d分</string>
     <string name="player_sleep_time_fired_end_of_chapter">スリープタイマーがチャプターの最後で停止しました。</string>
     <string name="player_sleep_in_chapters">%d個のチャプターでスリープ中</string>
-    <string name="player_sleep_in_one_chapter">1個のチャプターでスリープ中</string>
     <string name="player_sleep_timer_in_chapter_plural">%d個のチャプター</string>
     <string name="player_sleep_timer_in_chapter">1個のチャプター</string>
     <string name="player_sleep_timer_in_episode_plural">%d件のエピソード</string>
@@ -526,7 +634,6 @@ Language: ja_JP
     <string name="settings_use_episode_artwork_title">エピソードのアートワーク</string>
     <string name="settings_use_episode_artwork_advanced">エピソードのアートワークの詳細設定</string>
     <string name="player_sleep_in_episodes">%dエピソードでスリープ</string>
-    <string name="player_sleep_in_one_episode">1エピソードでスリープ</string>
     <string name="player_sleep_timer_stopped_your_podcast">スリープタイマーにより、ポッドキャストが停止しました。</string>
     <string name="player_sleep_timer_restarted_after_device_shake">端末を振った後、スリープタイマーが再開しました</string>
     <string name="widget_nothing_in_up_next">次のエピソードには何もありません</string>
@@ -559,22 +666,12 @@ Language: ja_JP
     <string name="bookmark_not_found">ブックマークが見つかりません</string>
     <string name="settings_use_dark_up_next_details">有効にすると、「次のエピソード待機リスト」では常にダークテーマを使用し、無効にすると現在のテーマと一致します</string>
     <string name="settings_use_dark_up_next">次のエピソード待機リストのダークテーマを使用</string>
-    <string name="end_of_year_stories_theres_more">その他にもございます !</string>
     <string name="end_of_year_stories_year_completion_rate">完了率</string>
-    <string name="end_of_year_stories_year_completion_rate_subtitle">開始した%1$d件のエピソードから合計%2$d件を最後まで聴きました</string>
-    <string name="end_of_year_stories_year_completion_rate_title">今年の完了率は%1$d%% です</string>
-    <string name="eoy_year_over_year_title_skyrocketed">2022年と比較して、聴取時間が急増しました !</string>
-    <string name="end_of_year_stories_year_over_year_subtitle_went_down">生きてこその人生ですね。</string>
     <string name="end_of_year_stories_year_over_share_text">%1$dと%2$dの聴取時間の比較</string>
+    <string name="end_of_year_stories_year_completion_rate_title">完了率は%1$d%% です</string>
     <string name="end_of_year_prompt_card_summary">視聴統計、人気のポッドキャストなどを確認します。</string>
-    <string name="end_of_year_stories_year_over_year_subtitle_flat">一貫性が成功の鍵であるとかなんとか言われています。</string>
-    <string name="end_of_year_stories_year_over_year_title_went_down">%1$sと比較して、聴取時間が少し減りました</string>
-    <string name="end_of_year_stories_year_over_year_title_flat">%1$sと比較して、聴取時間は一定していました</string>
-    <string name="end_of_year_stories_year_over_year_subtitle_went_up">%1$sにこの記録を上回る準備はできていますか ?</string>
-    <string name="end_of_year_stories_year_over_year_title_went_up">%1$sと比較して、聴取時間が%2$s%%に急増しました</string>
-    <string name="end_of_year_story_longest_episode_title">お聴きになった最長のエピソードは %1$s でした</string>
+    <string name="end_of_year_stories_year_over_year_title_went_up">%1$sと比較して、聴取時間が急増しました%2$s%%</string>
     <string name="end_of_year_replay">もう一度再生</string>
-    <string name="end_of_year_story_epilogue_title">本年もご聴取いただきありがとうございました。\n%1$dもよろしくお願いいたします。</string>
     <string name="end_of_year_listening_time_title">これはポッドキャストの合計聴取時間です。</string>
     <string name="end_of_year_story_top_categories_subtitle">%2$s話のエピソードで合計%1$s話聴きました</string>
     <string name="end_of_year_story_top_categories_title">%1$s があなたのお気に入りのカテゴリーだとお気づきでしたか ?</string>
@@ -665,7 +762,7 @@ Language: ja_JP
     <string name="settings_continuous_playback_summary">「\"次のエピソード」が空の場合、現在視聴中のポッドキャストと同じものまたはリストからエピソードを再生します。</string>
     <string name="renew_your_subscription">サブスクリプションを更新</string>
     <string name="log_in_watch_from_phone_instructions_3">問題が発生した場合は、スマートフォンでウォッチと同じバージョンの Pocket Casts が実行されていることを確認します (%s)</string>
-    <string name="log_in_free_acccount">%s では無料アカウントを使用しています</string>
+    <string name="log_in_free_account">%s では無料アカウントを使用しています</string>
     <string name="player_play_failed_check_internet">ポッドキャストを読み込めませんでした。 ネットワーク接続を確認して、もう一度お試しください。</string>
     <string name="empty_play_state">開始するエピソードを選ぶ</string>
     <string name="settings_beta_features">ベータ版の機能</string>
@@ -774,10 +871,6 @@ Language: ja_JP
     <string name="settings_media_actions_customise">メディアアクションをカスタマイズ</string>
     <string name="onboarding_recommendations_more">%sをもっと見る</string>
     <string name="clear_up_next">次のエピソードをクリア</string>
-    <string name="filter_id_or_title">フィルター ID またはタイトル</string>
-    <string name="filter_title">フィルタータイトル</string>
-    <string name="filter_id_description">フィルターを表す一意の ID。 「フィルターエピソードをクエリー」アクションで使用できます。</string>
-    <string name="filter_id">フィルター ID</string>
     <string name="episode_count">エピソード数</string>
     <string name="no_episodes_found_for_episode_ids_x">エピソード ID %1$s のエピソードが見つかりません</string>
     <string name="no_episode_ids_provided">エピソード ID が指定されていません</string>
@@ -808,12 +901,14 @@ Language: ja_JP
     <string name="podcast_id_description">ポッドキャストを表す一意の ID。 「ポッドキャストエピソードをクエリー」アクションで使用できます。</string>
     <string name="podcast_id">ポッドキャスト ID</string>
     <string name="pocket_casts_query_up_next_episodes">Pocket Casts 「次のエピソードをクエリー」</string>
-    <string name="pocket_casts_query_filter_episodes">Pocket Casts「フィルターエピソードをクエリー」</string>
-    <string name="pocket_casts_query_filters">Pocket Casts「クエリーフィルター」</string>
     <string name="pocket_casts_add_to_up_next">Pocket Casts「次のエピソードに追加」</string>
     <string name="pocket_casts_query_podcast_episodes">Pocket Casts「ポッドキャストエピソードをクエリー」</string>
     <string name="pocket_casts_query_podcasts">Pocket Casts「ポッドキャストをクエリー」</string>
     <string name="onboarding_plus_can_be_canceled_at_any_time">いつでもキャンセルできます。</string>
+    <string name="filter_id_or_title">プレイリストの ID またはタイトル</string>
+    <string name="filter_id_description">プレイリストを表す一意の ID。 「プレイリストエピソードをクエリー」アクションで使用できます。</string>
+    <string name="pocket_casts_query_filter_episodes">Pocket Casts プレイリストエピソードをクエリー</string>
+    <string name="pocket_casts_query_filters">Pocket Casts プレイリストをクエリー</string>
     <string name="profile_cancel_confirm_cancel_button_title">はい、サブスクリプションをキャンセルします</string>
     <string name="profile_cancel_confirm_stay_button_title">利用を続けます</string>
     <string name="profile_cancel_confirm_item_web_player">ウェブブラウザーやデスクトップコンピューターで Pocket Casts にアクセスできなくなります。</string>
@@ -857,7 +952,6 @@ Language: ja_JP
     <string name="plus_trial_duration_free_trial">%s 無料トライアル</string>
     <string name="onboarding_sign_up">登録</string>
     <string name="onboarding_plus_recurring_after_free_trial">%1$s (%2$s) 後に定期支払いが開始します</string>
-    <string name="end_of_year_stories_failed">年末のストーリーを読み込めません。インターネット接続を確認してください。</string>
     <string name="onboarding_plus_feature_themes_icons_text">あなたの個性を表現しましょう。 Plus クラブ限定の特別なアイコンとテーマ。</string>
     <string name="onboarding_plus_feature_themes_icons_title">テーマとアイコン</string>
     <string name="onboarding_plus_feature_cloud_storage_text">ファイルをクラウドストレージにアップロードしてどこからでも利用できるようにします。</string>
@@ -884,17 +978,13 @@ Language: ja_JP
     <string name="end_of_year_story_top_categories_share_text">一番聴いたポッドキャストのカテゴリー</string>
     <string name="end_of_year_story_top_categories">トップカテゴリー</string>
     <string name="end_of_year_story_top_podcasts_share_text">今年再生数が多かったポッドキャストはこちら ! %1$s</string>
-    <string name="end_of_year_story_epilogue_subtitle">友達と共有したりお気に入りのポッドキャストクリエイターにエールを送ったりしましょう</string>
-    <string name="end_of_year_story_listened_to_numbers_subtitle">何度も聴いたエピソードもありました…</string>
     <string name="end_of_year_story_longest_episode_share_text">%1$dに聴いた最長のエピソード %2$s</string>
     <string name="end_of_year_story_top_podcasts_list_title">%1$dに再生数が多かったポッドキャスト</string>
     <string name="end_of_year_story_top_podcast_share_text">%1$dのお気に入りのポッドキャストはこちら ! %2$s</string>
     <string name="end_of_year_story_listened_to_numbers_share_text">%3$dは%1$d個のポッドキャストで%2$d話のエピソードを聴きました</string>
-    <string name="end_of_year_story_top_podcast_subtitle">「%3$s」の全%2$s話のエピソードで合計%1$d話を聴きました</string>
     <string name="end_of_year_story_listened_to_categories">今年、%1$d個のカテゴリーを聴きました</string>
     <string name="end_of_year_story_listened_to_categories_subtitle">お気に入りをいくつか振り返りましょう…</string>
     <string name="end_of_year_story_intro_title">今年聴いたポッドキャストを振り返ってみましょう。</string>
-    <string name="end_of_year_story_listened_to_numbers">%1$d個のショーで合計%2$d話のエピソードを聴きました</string>
     <string name="end_of_year_story_listened_to_categories_share_text">2023年は%1$d個のカテゴリーを聴きました</string>
     <string name="end_of_year_story_listened_to_share_text">今年ポッドキャストを聴いた時間は%1$s時間でした</string>
     <string name="settings_media_notification_controls">メディア通知コントロール</string>
@@ -910,9 +1000,9 @@ Language: ja_JP
     <string name="playback_speed_not_valid">再生速度 %1$s は有効ではありません</string>
     <string name="profile_account_upgraded">アカウントはアップグレードされました</string>
     <string name="pocket_casts_control_playback">Pocket Casts プレイバックコントロール</string>
-    <string name="pocket_casts_play_filter">Pocket Casts 再生フィルター</string>
     <string name="time_to_skip_not_valid">スキップ先の時間%1$sが無効です</string>
     <string name="time_to_skip_seconds">スキップ先の時間 (秒)</string>
+    <string name="pocket_casts_play_filter">Pocket Casts プレイリストを再生</string>
     <string name="settings_select_filters">フィルターを選択する</string>
     <string name="settings_import_url_summary">URL を使用して OPML ファイルからポッドキャストをインポートします。</string>
     <string name="settings_import_url">URL を使用</string>
@@ -929,12 +1019,12 @@ Language: ja_JP
     <string name="playback_command">再生コマンド</string>
     <string name="command_x_not_valid">コマンド %1$s が無効です</string>
     <string name="must_provide_command_name">コマンド名を指定する必要があります</string>
-    <string name="no_episodes_in_filter_x">フィルター %1$s にエピソードはありません</string>
-    <string name="filter_x_not_found">フィルター %1$s は見つかりません</string>
-    <string name="must_provide_filter_name">フィルター名を指定する必要があります</string>
+    <string name="no_episodes_in_filter_x">プレイリスト %1$s にエピソードがありません</string>
+    <string name="filter_x_not_found">プレイリスト %1$s が見つかりません</string>
+    <string name="must_provide_filter_name">プレイリスト名を入力する必要があります</string>
     <string name="end_of_year_launch_modal_summary">人気のポッドキャスト、カテゴリー、視聴統計などを確認します。 友達と共有したり、お気に入りのクリエイターにエールを送ったりしましょう。</string>
     <string name="settings_app_icon_halloween">ハロウィーン</string>
-    <string name="end_of_year_launch_modal_primary_button_title">マイプレイバック2024を表示</string>
+    <string name="end_of_year_launch_modal_primary_button_title">マイプレイバック2025を表示</string>
     <string name="settings_show_played_summary">プレイを終了したエピソードは、引き続き表示されます。</string>
     <string name="settings_show_played">「再生されたエピソードを表示」</string>
     <string name="settings_privacy_crash_link_summary">クラッシュレポートへの Pocket Casts アカウントのリンクを許可します。 </string>
@@ -1057,7 +1147,6 @@ Language: ja_JP
     <string name="off">オフ</string>
     <string name="discover_popular_in">%s で人気</string>
     <string name="discover_popular">人気</string>
-    <string name="filters_filter_name">フィルター名</string>
     <string name="episode_short_episode">E%d</string>
     <string name="episode_short_season">S%d</string>
     <string name="episode_short_season_episode">S%1$d E%2$d</string>
@@ -1561,7 +1650,6 @@ Language: ja_JP
     <string name="profile_status_error_internet">🤔\n\n統計 \n を読み込めませんインターネット接続を確認してください。</string>
     <string name="profile_stats_total">合計</string>
     <string name="profile_stats_since_listened_for">%s以降の聴取時間</string>
-    <string name="profile_stats_share_to">以下と共有..</string>
     <string name="profile_stats_listened_for">聴取時間</string>
     <string name="profile_stat_days_listened">聴取日数</string>
     <string name="profile_sonos_title">Pocket Casts と Sonos</string>
@@ -1714,6 +1802,7 @@ Language: ja_JP
     <string name="profile_stats_time_saved_by">節約時間数</string>
     <string name="profile_create_password_requirements">6文字以上のパスワードを選んでください</string>
     <string name="filters_create_colour_icon">カラーとアイコン</string>
+    <string name="profile_stats_share_to">共有先…</string>
     <string name="supporter">サポーター</string>
     <string name="filters">フィルター</string>
     <string name="player_rearrange_actions_hidden">その他の操作</string>
@@ -1925,7 +2014,6 @@ Language: ja_JP
     <string name="player_time_saved_no_hour">おめでとうございます ! 時間を節約してより多くのポッドキャストを聴いています。</string>
     <string name="player_time_saved_detail">この機能を使用して合計%s 節約しました。</string>
     <string name="player_sleep_timer">スリープタイマー</string>
-    <string name="player_sleep_end_of_episode">エピソード終了時</string>
     <string name="player_sleep_cancel_timer">タイマーをキャンセル</string>
     <string name="player_sleep_add_5_minutes">+ 5分</string>
     <string name="player_sleep_60_minutes">60分</string>
@@ -1979,6 +2067,7 @@ Language: ja_JP
     <string name="sort_oldest_to_newest">古い順</string>
     <string name="player_sleep_time_fired">スリープタイマーがエピソードの最後で停止しました。</string>
     <string name="podcast_unsubscribe_warning">フォローを解除するとダウンロード済みファイルがすべて削除されます。</string>
+    <string name="player_sleep_timer_end_of_episode">エピソード終了時</string>
     <string name="more_options">追加オプション</string>
     <string name="ok">OK</string>
     <string name="pause">一時停止</string>
@@ -2099,6 +2188,9 @@ Language: ja_JP
     <plurals name="episode_count">
         <item quantity="other">%d件のエピソード</item>
     </plurals>
+    <plurals name="episodes">
+        <item quantity="other">%1$d件のエピソード</item>
+    </plurals>
     <plurals name="hour">
         <item quantity="other">時間</item>
     </plurals>
@@ -2123,6 +2215,12 @@ Language: ja_JP
     <plurals name="player_up_next_header_title">
         <item quantity="other" formatted="true">%1$d件のエピソード - 残り%2$s</item>
     </plurals>
+    <plurals name="playlist_episodes_archived_description">
+        <item quantity="other">このプレイリストの%1$d件のエピソードがすべてアーカイブされました</item>
+    </plurals>
+    <plurals name="playlists_selected_count">
+        <item quantity="other">%1$d件のプレイリストを選択済み</item>
+    </plurals>
     <plurals name="podcast">
         <item quantity="other">ポッドキャスト</item>
     </plurals>
@@ -2131,6 +2229,12 @@ Language: ja_JP
     </plurals>
     <plurals name="podcast_share_start_handle_description">
         <item quantity="other">クリップハンドルを開始: %d秒</item>
+    </plurals>
+    <plurals name="podcasts_count">
+        <item quantity="other">%d件のポッドキャスト</item>
+    </plurals>
+    <plurals name="podcasts_selected_count">
+        <item quantity="other">%1$d件のポッドキャストを選択済み</item>
     </plurals>
     <plurals name="profile_stats_day_listened">
         <item quantity="other">聴取日数</item>
@@ -2161,6 +2265,9 @@ Language: ja_JP
     </plurals>
     <plurals name="second_short">
         <item quantity="other">秒</item>
+    </plurals>
+    <plurals name="second_with_count">
+        <item quantity="other">%1$d秒</item>
     </plurals>
     <plurals name="settings_auto_download_on_follow_podcast_description">
         <item quantity="other">フォローする新しい番組から最新エピソード%s件を自動でダウンロードします。</item>

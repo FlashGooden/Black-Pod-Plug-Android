@@ -1,10 +1,6 @@
 package au.com.shiftyjelly.pocketcasts.compose.components
 
-import android.icu.text.ListFormatter.Width
 import androidx.annotation.FloatRange
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -22,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
@@ -38,18 +35,17 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import au.com.shiftyjelly.pocketcasts.compose.AppThemeWithBackground
 import au.com.shiftyjelly.pocketcasts.compose.preview.ThemePreviewParameterProvider
 import au.com.shiftyjelly.pocketcasts.compose.theme
+import au.com.shiftyjelly.pocketcasts.ui.helper.modifyHsv
 import au.com.shiftyjelly.pocketcasts.ui.theme.Theme
 
 @Composable
 fun TooltipPopup(
-    show: Boolean,
     title: String,
     tipPosition: TipPosition,
     body: String? = null,
@@ -69,10 +65,7 @@ fun TooltipPopup(
         properties = properties,
         onDismissRequest = onClickOutside,
     ) {
-        AnimatedVisibility(
-            visible = show,
-            enter = fadeIn(),
-            exit = fadeOut(),
+        Box(
             modifier = Modifier.padding(elevationPadding),
         ) {
             Tooltip(
@@ -116,10 +109,7 @@ fun Tooltip(
     elevation: Dp = 16.dp,
 ) {
     val tooltipShape = TooltipShape(tipPosition)
-    val backgroundColor = when (MaterialTheme.theme.type) {
-        Theme.ThemeType.DARK_CONTRAST -> MaterialTheme.theme.colors.primaryUi05
-        else -> MaterialTheme.theme.colors.primaryUi01
-    }
+    val (backgroundColor, titleColor, descriptionColor) = rememberTooltipColors()
 
     Box(
         modifier = (if (elevation > 0.dp) Modifier.shadow(elevation, tooltipShape) else Modifier)
@@ -137,6 +127,7 @@ fun Tooltip(
             }
             TextH40(
                 text = title,
+                color = titleColor,
             )
             if (body != null) {
                 Spacer(
@@ -144,7 +135,7 @@ fun Tooltip(
                 )
                 TextP50(
                     text = body,
-                    color = MaterialTheme.theme.colors.primaryText02,
+                    color = descriptionColor,
                 )
             }
             if (tipPosition.isBottomAligned()) {
@@ -171,7 +162,9 @@ enum class TipPosition {
 
     internal fun normalize(layoutDirection: LayoutDirection) = when (this) {
         TopCenter -> TopCenter
+
         BottomCenter -> BottomCenter
+
         TopStart -> when (layoutDirection) {
             LayoutDirection.Ltr -> TopStart
             LayoutDirection.Rtl -> TopEnd
@@ -192,6 +185,26 @@ enum class TipPosition {
             LayoutDirection.Rtl -> BottomStart
         }
     }
+}
+
+@Composable
+private fun rememberTooltipColors(): Triple<Color, Color, Color> {
+    val theme = MaterialTheme.theme
+    return remember(theme) {
+        val baseBackground = theme.colors.primaryUi01
+        val baseTitle = theme.colors.primaryText01
+        val baseDescription = theme.colors.primaryText02
+        if (theme.isDark) {
+            Triple(baseBackground.brighten(), baseTitle.brighten(), baseDescription.brighten())
+        } else {
+            Triple(baseBackground, baseTitle, baseDescription)
+        }
+    }
+}
+
+private fun Color.brighten() = modifyHsv { h, s, v ->
+    val newValue = (v.coerceAtLeast(0.1f) * 1.4f).coerceAtMost(1f)
+    Color.hsv(h, s, newValue)
 }
 
 @Composable

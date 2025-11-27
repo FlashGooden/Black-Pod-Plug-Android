@@ -23,6 +23,9 @@ class FirebaseAnalyticsTracker @Inject constructor(
             AnalyticsEvent.PLUS_PROMOTION_NOT_NOW_BUTTON_TAPPED,
             AnalyticsEvent.PLAYBACK_PLAY,
             AnalyticsEvent.PODCAST_SUBSCRIBED,
+            AnalyticsEvent.BANNER_AD_IMPRESSION,
+            AnalyticsEvent.BANNER_AD_TAPPED,
+            AnalyticsEvent.BANNER_AD_REPORT,
         )
 
         private fun shouldTrack(event: AnalyticsEvent) = EVENTS.contains(event)
@@ -53,7 +56,6 @@ class FirebaseAnalyticsTracker @Inject constructor(
         Timber.d("Analytic event: $name properties: $properties")
     }
 
-    override fun getTrackerType() = TrackerType.FirstParty
     override fun refreshMetadata() {}
     override fun flush() {}
     override fun clearAllData() {}

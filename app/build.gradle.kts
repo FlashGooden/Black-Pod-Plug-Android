@@ -14,6 +14,7 @@ android {
 
     defaultConfig {
         applicationId = project.property("applicationId").toString()
+        targetSdk = project.property("targetSdkVersion") as Int
         multiDexEnabled = true
     }
 
@@ -36,6 +37,10 @@ android {
 
         named("debugProd") {
             manifestPlaceholders["appIcon"] = "@mipmap/ic_launcher_3"
+        }
+
+        maybeCreate("prototype").apply {
+            manifestPlaceholders["appIcon"] = "@mipmap/ic_launcher_prototype"
         }
 
         named("release") {
@@ -63,9 +68,6 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.mediarouter)
-    implementation(libs.appsflyer) {
-        exclude(group = "com.google.android.play", module = "integrity")
-    }
     implementation(libs.automattic.crashlogging)
     implementation(libs.coil)
     implementation(libs.compose.ui)
@@ -83,7 +85,6 @@ dependencies {
     implementation(libs.hilt.work)
     implementation(libs.horologist.auth.data.phone)
     implementation(libs.horologist.datalayer)
-    implementation(libs.installreferrer)
     implementation(libs.lifecycle.reactivestreams.ktx)
     implementation(libs.material)
     implementation(libs.media3.extractor)
@@ -99,6 +100,7 @@ dependencies {
     implementation(libs.work.runtime)
 
     implementation(projects.modules.features.account)
+    implementation(projects.modules.features.appreview)
     implementation(projects.modules.features.discover)
     implementation(projects.modules.features.engage)
     implementation(projects.modules.features.endofyear)

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,26 +29,28 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import au.com.shiftyjelly.pocketcasts.account.onboarding.components.ContinueWithGoogleButton
 import au.com.shiftyjelly.pocketcasts.account.viewmodel.GoogleSignInState
 import au.com.shiftyjelly.pocketcasts.account.viewmodel.OnboardingCreateAccountViewModel
 import au.com.shiftyjelly.pocketcasts.compose.AppThemeWithBackground
 import au.com.shiftyjelly.pocketcasts.compose.CallOnce
+import au.com.shiftyjelly.pocketcasts.compose.bars.NavigationButton
+import au.com.shiftyjelly.pocketcasts.compose.bars.NavigationIconButton
 import au.com.shiftyjelly.pocketcasts.compose.bars.SystemBarsStyles
 import au.com.shiftyjelly.pocketcasts.compose.bars.ThemedTopAppBar
 import au.com.shiftyjelly.pocketcasts.compose.bars.custom
 import au.com.shiftyjelly.pocketcasts.compose.bars.transparent
 import au.com.shiftyjelly.pocketcasts.compose.buttons.RowButton
+import au.com.shiftyjelly.pocketcasts.compose.buttons.RowTextButton
 import au.com.shiftyjelly.pocketcasts.compose.components.EmailAndPasswordFields
 import au.com.shiftyjelly.pocketcasts.compose.components.TextH10
 import au.com.shiftyjelly.pocketcasts.compose.components.TextP40
-import au.com.shiftyjelly.pocketcasts.compose.components.TextP50
 import au.com.shiftyjelly.pocketcasts.compose.preview.ThemePreviewParameterProvider
 import au.com.shiftyjelly.pocketcasts.compose.theme
 import au.com.shiftyjelly.pocketcasts.models.type.Subscription
@@ -66,6 +69,7 @@ internal fun NewOnboardingCreateAccountPage(
     onCreateAccount: () -> Unit,
     onUpdateSystemBars: (SystemBarsStyles) -> Unit,
     onContinueWithGoogleComplete: (GoogleSignInState, Subscription?) -> Unit,
+    onClickLogin: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: OnboardingCreateAccountViewModel = hiltViewModel(),
 ) {
@@ -74,7 +78,7 @@ internal fun NewOnboardingCreateAccountPage(
     val pocketCastsTheme = MaterialTheme.theme
 
     CallOnce {
-        viewModel.onShown()
+        viewModel.onSetupAccountShown(flow = flow)
     }
 
     LaunchedEffect(onUpdateSystemBars) {
@@ -85,7 +89,7 @@ internal fun NewOnboardingCreateAccountPage(
     }
 
     BackHandler {
-        viewModel.onBackPressed()
+        viewModel.onSetupAccountDismissed(flow = flow)
         onBackPress()
     }
 
@@ -94,20 +98,36 @@ internal fun NewOnboardingCreateAccountPage(
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .windowInsetsPadding(WindowInsets.ime)
-            .padding(vertical = 16.dp)
+            .padding(bottom = 16.dp)
             .fillMaxHeight()
             .verticalScroll(rememberScrollState()),
     ) {
-        TextP40(
-            fontSize = 17.sp,
-            modifier = Modifier
-                .align(Alignment.End)
-                .padding(horizontal = 24.dp)
-                .clickable(onClick = onSkip),
-            text = stringResource(LR.string.not_now),
-            color = MaterialTheme.theme.colors.primaryInteractive01,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+        val onClose = {
+            viewModel.onSetupAccountDismissed(flow = flow)
+            onSkip()
+        }
+        if (flow.shouldOfferLogin) {
+            NavigationIconButton(
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(horizontal = 8.dp, vertical = 16.dp),
+                tint = MaterialTheme.theme.colors.primaryInteractive01,
+                navigationButton = NavigationButton.Close,
+                onClick = onClose,
+            )
+        } else {
+            TextP40(
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(end = 16.dp, top = 11.dp)
+                    .clickable(onClick = onClose)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                text = stringResource(LR.string.not_now),
+                color = MaterialTheme.theme.colors.primaryInteractive01,
+                fontWeight = FontWeight.W500,
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
         TextH10(
             modifier = Modifier.padding(horizontal = 24.dp),
             text = stringResource(LR.string.onboarding_create_account_title),
@@ -115,11 +135,12 @@ internal fun NewOnboardingCreateAccountPage(
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(12.dp))
-        TextP50(
+        TextP40(
             modifier = Modifier.padding(horizontal = 24.dp),
             text = stringResource(LR.string.onboarding_create_account_message),
             color = MaterialTheme.theme.colors.primaryText02,
             textAlign = TextAlign.Center,
+            fontWeight = FontWeight.W500,
         )
         Spacer(modifier = Modifier.weight(1f))
         Image(
@@ -133,7 +154,13 @@ internal fun NewOnboardingCreateAccountPage(
             ContinueWithGoogleButton(
                 flow = flow,
                 onComplete = onContinueWithGoogleComplete,
-                label = stringResource(LR.string.onboarding_create_account_sign_up_google),
+                label = stringResource(
+                    if (flow.shouldOfferLogin) {
+                        LR.string.onboarding_continue_with_google
+                    } else {
+                        LR.string.onboarding_create_account_sign_up_google
+                    },
+                ),
             )
         }
         RowButton(
@@ -143,12 +170,25 @@ internal fun NewOnboardingCreateAccountPage(
             includePadding = false,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
+        if (flow.shouldOfferLogin) {
+            RowTextButton(
+                text = stringResource(LR.string.onboarding_log_in),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.theme.colors.primaryText01),
+                includePadding = false,
+                onClick = onClickLogin,
+                modifier = Modifier.padding(16.dp),
+            )
+        }
     }
 }
+
+private val OnboardingFlow.shouldOfferLogin: Boolean
+    get() = this is OnboardingFlow.LoggedOut || this is OnboardingFlow.Upsell || this is OnboardingFlow.UpsellSuggestedFolder
 
 @Composable
 internal fun OnboardingCreateAccountPage(
     theme: Theme.ThemeType,
+    flow: OnboardingFlow,
     onBackPress: () -> Unit,
     onCreateAccount: () -> Unit,
     onUpdateSystemBars: (SystemBarsStyles) -> Unit,
@@ -160,7 +200,7 @@ internal fun OnboardingCreateAccountPage(
     val pocketCastsTheme = MaterialTheme.theme
 
     CallOnce {
-        viewModel.onShown()
+        viewModel.onCreateAccountShown(flow = flow)
     }
 
     LaunchedEffect(onUpdateSystemBars) {
@@ -171,7 +211,7 @@ internal fun OnboardingCreateAccountPage(
     }
 
     BackHandler {
-        viewModel.onBackPressed()
+        viewModel.onCreateAccountDismissed(flow = flow)
         onBackPress()
     }
 
@@ -192,7 +232,7 @@ internal fun OnboardingCreateAccountPage(
         ThemedTopAppBar(
             title = stringResource(LR.string.create_account),
             onNavigationClick = {
-                viewModel.onBackPressed()
+                viewModel.onCreateAccountDismissed(flow = flow)
                 onBackPress()
             },
         )
@@ -257,6 +297,7 @@ private fun OnboardingCreateAccountPagePreview(
     AppThemeWithBackground(themeType) {
         OnboardingCreateAccountPage(
             theme = themeType,
+            flow = OnboardingFlow.LoggedOut,
             onBackPress = {},
             onCreateAccount = {},
             onUpdateSystemBars = {},

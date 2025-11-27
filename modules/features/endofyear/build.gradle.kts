@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.parcelize)
 }
 
 android {
@@ -45,6 +46,8 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.coroutines.core)
     implementation(libs.timber)
+    implementation(libs.lottie.compose)
+    implementation(libs.media3.ui.compose)
 
     implementation(projects.modules.features.account)
     implementation(projects.modules.features.settings)

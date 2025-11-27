@@ -34,7 +34,7 @@ interface PodcastManager {
 
     fun findSubscribedBlocking(): List<Podcast>
     fun findSubscribedRxSingle(): Single<List<Podcast>>
-    fun findSubscribedFlow(): Flow<List<Podcast>>
+    fun findSubscribedFlow(searchTerm: String? = null): Flow<List<Podcast>>
     suspend fun findSubscribedSorted(): List<Podcast>
     suspend fun findSubscribedNoOrder(): List<Podcast>
     suspend fun findPodcastsInFolder(folderUuid: String): List<Podcast>
@@ -50,21 +50,17 @@ interface PodcastManager {
 
     fun subscribedRxFlowable(): Flowable<List<Podcast>>
     suspend fun findPodcastsOrderByTitle(): List<Podcast>
-    fun findPodcastsToSyncBlocking(): List<Podcast>
     suspend fun findPodcastsToSync(): List<Podcast>
     suspend fun findPodcastsOrderByLatestEpisode(orderAsc: Boolean): List<Podcast>
     suspend fun findFolderPodcastsOrderByLatestEpisode(folderUuid: String): List<Podcast>
     suspend fun findPodcastsOrderByRecentlyPlayedEpisode(): List<Podcast>
     suspend fun findFolderPodcastsOrderByRecentlyPlayedEpisode(folderUuid: String): List<Podcast>
 
-    fun findPodcastsAutodownloadBlocking(): List<Podcast>
-
     fun episodeCountByPodcatUuidFlow(uuid: String): Flow<Int>
 
     /** Add methods  */
     fun subscribeToPodcast(podcastUuid: String, sync: Boolean, shouldAutoDownload: Boolean = true)
 
-    fun subscribeToPodcastRxSingle(podcastUuid: String, sync: Boolean = false, shouldAutoDownload: Boolean = true): Single<Podcast>
     suspend fun subscribeToPodcastOrThrow(podcastUuid: String, sync: Boolean = false, shouldAutoDownload: Boolean = true): Podcast
     fun findOrDownloadPodcastRxSingle(podcastUuid: String, waitForSubscribe: Boolean = false): Single<Podcast>
     fun isSubscribingToPodcasts(): Boolean
@@ -78,7 +74,7 @@ interface PodcastManager {
     fun updatePodcastBlocking(podcast: Podcast)
     suspend fun updatePodcast(podcast: Podcast)
 
-    suspend fun updateAllAutoDownloadStatus(autoDownloadStatus: Int)
+    suspend fun updateAutoDownload(podcastUuids: Collection<String>, isEnabled: Boolean)
     suspend fun updateAllShowNotifications(showNotifications: Boolean)
     fun updateAutoDownloadStatusBlocking(podcast: Podcast, autoDownloadStatus: Int)
     suspend fun updateAutoAddToUpNext(podcast: Podcast, autoAddToUpNext: Podcast.AutoAddUpNext)
@@ -92,7 +88,6 @@ interface PodcastManager {
     fun updateEpisodesSortTypeBlocking(podcast: Podcast, episodesSortType: EpisodesSortType)
     suspend fun updateShowNotifications(podcastUuid: String, show: Boolean)
     suspend fun updatePodcastPositions(podcasts: List<Podcast>)
-    suspend fun updateRefreshAvailable(podcastUuid: String, refreshAvailable: Boolean)
     suspend fun updateStartFromInSec(podcast: Podcast, autoStartFrom: Int)
     fun updateColorsBlocking(podcastUuid: String, background: Int, tintForLightBg: Int, tintForDarkBg: Int, fabForLightBg: Int, fabForDarkBg: Int, linkForLightBg: Int, linkForDarkBg: Int, colorLastDownloaded: Long)
     fun updateLatestEpisodeBlocking(podcast: Podcast, latestEpisode: PodcastEpisode)
@@ -103,8 +98,6 @@ interface PodcastManager {
     suspend fun updateFolderUuid(folderUuid: String?, podcastUuids: List<String>)
     suspend fun updateIsHeaderExpanded(podcastUuid: String, isExpanded: Boolean)
 
-    fun markPodcastUuidAsNotSyncedBlocking(podcastUuid: String)
-    suspend fun markAllPodcastsSynced()
     suspend fun markAllPodcastsUnsynced()
     suspend fun markAllPodcastsUnsynced(uuids: Collection<String>)
 
@@ -115,24 +108,19 @@ interface PodcastManager {
     fun deletePodcastIfUnusedBlocking(podcast: Podcast, playbackManager: PlaybackManager): Boolean
     suspend fun deleteAllPodcasts()
     suspend fun unsubscribe(podcastUuid: String, playbackManager: PlaybackManager)
-    fun unsubscribeBlocking(podcastUuid: String, playbackManager: PlaybackManager)
     fun unsubscribeAsync(podcastUuid: String, playbackManager: PlaybackManager)
 
     /** Utility methods  */
     fun countPodcastsBlocking(): Int
     suspend fun countSubscribed(): Int
-    fun countSubscribedRxSingle(): Single<Int>
-    fun countSubscribedRxFlowable(): Flowable<Int>
-    fun countDownloadStatusBlocking(downloadStatus: Int): Int
+    fun countSubscribedFlow(): Flow<Int>
     suspend fun hasEpisodesWithAutoDownloadStatus(downloadStatus: Int): Boolean
-    fun countDownloadStatusRxSingle(downloadStatus: Int): Single<Int>
     fun countNotificationsOnBlocking(): Int
 
     fun refreshPodcastsIfRequired(fromLog: String)
     fun refreshPodcasts(fromLog: String)
     suspend fun refreshPodcastsAfterSignIn()
     suspend fun refreshPodcast(existingPodcast: Podcast, playbackManager: PlaybackManager)
-    fun reloadFoldersFromServer()
 
     fun checkForEpisodesToDownloadBlocking(episodeUuidsAdded: List<String>, downloadManager: DownloadManager)
 

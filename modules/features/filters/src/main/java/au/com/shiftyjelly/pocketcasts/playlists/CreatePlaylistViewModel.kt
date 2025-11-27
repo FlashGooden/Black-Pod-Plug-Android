@@ -6,18 +6,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
+import au.com.shiftyjelly.pocketcasts.compose.text.SearchFieldState
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
-import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
+import au.com.shiftyjelly.pocketcasts.models.to.PlaylistEpisode
+import au.com.shiftyjelly.pocketcasts.models.type.PlaylistEpisodeSortType
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.DownloadStatusRule
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.MediaTypeRule
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.ReleaseDateRule
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.AppliedRules
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.RuleType
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.RulesBuilder
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.SmartRulesEditor
+import au.com.shiftyjelly.pocketcasts.playlists.smart.AppliedRules
+import au.com.shiftyjelly.pocketcasts.playlists.smart.RuleType
+import au.com.shiftyjelly.pocketcasts.playlists.smart.RulesBuilder
+import au.com.shiftyjelly.pocketcasts.playlists.smart.SmartRulesEditor
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.preferences.model.ArtworkConfiguration.Element
+import au.com.shiftyjelly.pocketcasts.repositories.playlist.Playlist.Type
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.PlaylistManager
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.SmartPlaylistDraft
 import au.com.shiftyjelly.pocketcasts.utils.extensions.combine
@@ -41,9 +44,9 @@ class CreatePlaylistViewModel @AssistedInject constructor(
     private val analyticsTracker: AnalyticsTracker,
     @Assisted initialPlaylistTitle: String,
 ) : ViewModel() {
-    private val _createdSmartPlaylistUuid = CompletableDeferred<String>(viewModelScope.coroutineContext[Job])
+    private val _createdPlaylist = CompletableDeferred<PlaylistCreated>(viewModelScope.coroutineContext[Job])
 
-    val createdSmartPlaylistUuid: Deferred<String> = _createdSmartPlaylistUuid
+    val createdPlaylist: Deferred<PlaylistCreated> get() = _createdPlaylist
 
     val playlistNameState = TextFieldState(
         initialText = initialPlaylistTitle,
@@ -54,15 +57,19 @@ class CreatePlaylistViewModel @AssistedInject constructor(
         scope = viewModelScope,
         initialBuilder = RulesBuilder.Empty,
         initialAppliedRules = AppliedRules.Empty,
+        sortType = PlaylistEpisodeSortType.NewestToOldest,
+        podcastSearchState = SearchFieldState(),
     )
+
+    val podcastSearchState get() = rulesEditor.podcastSearchState
 
     val uiState = combine(
         rulesEditor.rulesFlow,
         rulesEditor.builderFlow,
         rulesEditor.followedPodcasts,
         rulesEditor.smartEpisodes,
-        rulesEditor.totalEpisodeCount,
         rulesEditor.smartStarredEpisodes,
+        rulesEditor.starredEpisodeCount,
         settings.artworkConfiguration.flow.map { it.useEpisodeArtwork(Element.Filters) },
         ::UiState,
     ).stateIn(viewModelScope, SharingStarted.Eagerly, initialValue = UiState.Empty)
@@ -158,9 +165,22 @@ class CreatePlaylistViewModel @AssistedInject constructor(
             rules = rules,
         )
         viewModelScope.launch {
-            val playlistUuid = playlistManager.insertSmartPlaylist(draft)
+            val playlistUuid = playlistManager.createSmartPlaylist(draft)
             trackPlaylistCreated(rules)
-            _createdSmartPlaylistUuid.complete(playlistUuid)
+            _createdPlaylist.complete(PlaylistCreated(playlistUuid, Type.Smart))
+        }
+    }
+
+    fun createManualPlaylist() {
+        val sanitizedName = playlistNameState.text.toString().trim()
+        if (isCreationTriggered || sanitizedName.isEmpty()) {
+            return
+        }
+        isCreationTriggered = true
+        viewModelScope.launch {
+            val playlistUuid = playlistManager.createManualPlaylist(sanitizedName)
+            trackPlaylistCreated(rules = null)
+            _createdPlaylist.complete(PlaylistCreated(playlistUuid, Type.Manual))
         }
     }
 
@@ -180,17 +200,17 @@ class CreatePlaylistViewModel @AssistedInject constructor(
         analyticsTracker.track(AnalyticsEvent.FILTER_CREATE_AS_SMART_PLAYLIST_TAPPED)
     }
 
-    fun trackPlaylistCreated(rules: SmartRules) {
-        analyticsTracker.track(AnalyticsEvent.FILTER_CREATED, rules.analyticsProperties())
+    fun trackPlaylistCreated(rules: SmartRules?) {
+        analyticsTracker.track(AnalyticsEvent.FILTER_CREATED, rules?.analyticsProperties() ?: emptyMap())
     }
 
     data class UiState(
         val appliedRules: AppliedRules,
         val rulesBuilder: RulesBuilder,
         val followedPodcasts: List<Podcast>,
-        val smartEpisodes: List<PodcastEpisode>,
-        val totalEpisodeCount: Int,
-        val smartStarredEpisodes: List<PodcastEpisode>,
+        val smartEpisodes: List<PlaylistEpisode.Available>,
+        val smartStarredEpisodes: List<PlaylistEpisode.Available>,
+        val starredEpisodeCount: Int,
         val useEpisodeArtwork: Boolean,
     ) {
         companion object {
@@ -198,13 +218,18 @@ class CreatePlaylistViewModel @AssistedInject constructor(
                 appliedRules = AppliedRules.Empty,
                 rulesBuilder = RulesBuilder.Empty,
                 followedPodcasts = emptyList(),
-                totalEpisodeCount = 0,
                 smartEpisodes = emptyList(),
                 smartStarredEpisodes = emptyList(),
+                starredEpisodeCount = 0,
                 useEpisodeArtwork = false,
             )
         }
     }
+
+    data class PlaylistCreated(
+        val uuid: String,
+        val type: Type,
+    )
 
     @AssistedFactory
     interface Factory {

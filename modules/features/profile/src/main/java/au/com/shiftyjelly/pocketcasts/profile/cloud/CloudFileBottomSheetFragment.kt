@@ -10,7 +10,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.core.os.BundleCompat
 import androidx.core.os.bundleOf
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
@@ -25,18 +24,14 @@ import au.com.shiftyjelly.pocketcasts.models.type.SignInState
 import au.com.shiftyjelly.pocketcasts.models.type.UserEpisodeServerStatus
 import au.com.shiftyjelly.pocketcasts.player.view.bookmark.BookmarksContainerFragment
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
-import au.com.shiftyjelly.pocketcasts.profile.R
 import au.com.shiftyjelly.pocketcasts.profile.cloud.CloudBottomSheetViewModel.Companion.DOWNLOAD
 import au.com.shiftyjelly.pocketcasts.profile.cloud.CloudBottomSheetViewModel.Companion.EDIT
 import au.com.shiftyjelly.pocketcasts.profile.cloud.CloudBottomSheetViewModel.Companion.UPLOAD
 import au.com.shiftyjelly.pocketcasts.profile.cloud.CloudBottomSheetViewModel.Companion.UPLOAD_UPGRADE_REQUIRED
 import au.com.shiftyjelly.pocketcasts.profile.databinding.BottomSheetCloudFileBinding
-import au.com.shiftyjelly.pocketcasts.repositories.bookmark.BookmarkManager
-import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadManager
 import au.com.shiftyjelly.pocketcasts.repositories.images.PocketCastsImageRequestFactory
 import au.com.shiftyjelly.pocketcasts.repositories.images.loadInto
-import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
-import au.com.shiftyjelly.pocketcasts.repositories.playback.UpNextQueue
+import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeRowDataProvider
 import au.com.shiftyjelly.pocketcasts.settings.onboarding.OnboardingFlow
 import au.com.shiftyjelly.pocketcasts.settings.onboarding.OnboardingLauncher
 import au.com.shiftyjelly.pocketcasts.settings.onboarding.OnboardingUpgradeSource
@@ -45,6 +40,7 @@ import au.com.shiftyjelly.pocketcasts.ui.extensions.themed
 import au.com.shiftyjelly.pocketcasts.ui.theme.Theme
 import au.com.shiftyjelly.pocketcasts.ui.theme.ThemeColor
 import au.com.shiftyjelly.pocketcasts.utils.Network
+import au.com.shiftyjelly.pocketcasts.utils.extensions.requireParcelable
 import au.com.shiftyjelly.pocketcasts.views.dialog.OptionsDialog
 import au.com.shiftyjelly.pocketcasts.views.extensions.setSystemWindowInsetToPadding
 import au.com.shiftyjelly.pocketcasts.views.helper.CloudDeleteHelper
@@ -54,7 +50,6 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlinx.coroutines.rx2.asObservable
 import kotlinx.parcelize.Parcelize
 import au.com.shiftyjelly.pocketcasts.images.R as IR
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
@@ -82,27 +77,21 @@ class CloudFileBottomSheetFragment : BottomSheetDialogFragment() {
         val source: EpisodeViewSource,
     ) : Parcelable
 
-    @Inject lateinit var downloadManager: DownloadManager
-
-    @Inject lateinit var playbackManager: PlaybackManager
-
     @Inject lateinit var settings: Settings
 
     @Inject lateinit var theme: Theme
-
-    @Inject lateinit var upNextQueue: UpNextQueue
 
     @Inject lateinit var warningsHelper: WarningsHelper
 
     @Inject lateinit var analyticsTracker: AnalyticsTracker
 
-    @Inject lateinit var bookmarkManager: BookmarkManager
+    @Inject lateinit var rowDataProvider: EpisodeRowDataProvider
 
     private var pocketCastsImageRequestFactory: PocketCastsImageRequestFactory? = null
     private val viewModel: CloudBottomSheetViewModel by viewModels()
     private var binding: BottomSheetCloudFileBinding? = null
 
-    private val args get() = requireNotNull(arguments?.let { BundleCompat.getParcelable(it, NEW_INSTANCE_ARG, Args::class.java) })
+    private val args get() = requireArguments().requireParcelable<Args>(NEW_INSTANCE_ARG)
 
     val activeTheme: Theme.ThemeType
         get() = if (args.forceDark && theme.isLightTheme) Theme.ThemeType.DARK else theme.activeTheme
@@ -258,20 +247,18 @@ class CloudFileBottomSheetFragment : BottomSheetDialogFragment() {
                 } else {
                     errorLayout.visibility = View.GONE
                 }
-                val userBookmarksObservable = bookmarkManager.findUserEpisodesBookmarksFlow().asObservable()
                 binding.fileStatusIconsView.setup(
                     episode = episode,
-                    downloadProgressUpdates = downloadManager.progressUpdateRelay,
-                    playbackStateUpdates = playbackManager.playbackStateRelay,
-                    upNextChangesObservable = upNextQueue.changesObservable,
-                    userBookmarksObservable = userBookmarksObservable,
-                    hideErrorDetails = true,
                     tintColor = tintColor,
+                    hideErrorDetails = true,
+                    rowDataObservable = rowDataProvider.episodeRowDataObservable(episode.uuid),
                 )
 
                 binding.lblCloud.text = when (episode.serverStatus) {
                     UserEpisodeServerStatus.LOCAL -> getString(LR.string.profile_cloud_upload)
+
                     UserEpisodeServerStatus.UPLOADING, UserEpisodeServerStatus.WAITING_FOR_WIFI, UserEpisodeServerStatus.QUEUED -> getString(LR.string.profile_cloud_cancel_upload)
+
                     UserEpisodeServerStatus.UPLOADED -> getString(
                         if (episode.isDownloaded) {
                             LR.string.profile_cloud_remove
@@ -281,6 +268,7 @@ class CloudFileBottomSheetFragment : BottomSheetDialogFragment() {
                             LR.string.download
                         },
                     )
+
                     UserEpisodeServerStatus.MISSING -> ""
                 }
 
@@ -294,7 +282,9 @@ class CloudFileBottomSheetFragment : BottomSheetDialogFragment() {
                 binding.layoutCloud.setOnClickListener {
                     when (episode.serverStatus) {
                         UserEpisodeServerStatus.LOCAL, UserEpisodeServerStatus.MISSING -> upload(episode, Network.isUnmeteredConnection(binding.layoutCloud.context))
+
                         UserEpisodeServerStatus.UPLOADING, UserEpisodeServerStatus.WAITING_FOR_WIFI, UserEpisodeServerStatus.QUEUED -> viewModel.cancelUpload(episode)
+
                         UserEpisodeServerStatus.UPLOADED -> if (episode.isDownloaded) {
                             viewModel.removeEpisode(episode)
                         } else if (episode.isDownloading) {
@@ -351,6 +341,7 @@ class CloudFileBottomSheetFragment : BottomSheetDialogFragment() {
                             layoutLockedCloud.isVisible = true
                         }
                     }
+
                     else -> {
                         layoutCloud.isVisible = false
                         layoutLockedCloud.isVisible = true

@@ -527,24 +527,19 @@ class EpisodeManagerImpl @Inject constructor(
         episode ?: return
 
         runBlocking {
-            deleteEpisodeFile(episode, playbackManager, false, false)
+            deleteEpisodeFile(episode, playbackManager, disableAutoDownload = false, updateDatabase = false)
         }
 
         episodeDao.deleteBlocking(episode)
     }
 
-    override suspend fun deleteEpisodeFile(episode: BaseEpisode?, playbackManager: PlaybackManager?, disableAutoDownload: Boolean, updateDatabase: Boolean, removeFromUpNext: Boolean, shouldShuffleUpNext: Boolean) {
+    override suspend fun deleteEpisodeFile(episode: BaseEpisode?, playbackManager: PlaybackManager?, disableAutoDownload: Boolean, updateDatabase: Boolean) {
         episode ?: return
 
         Timber.d("Deleting episode file ${episode.title}")
 
         // if the episode is currently downloading, kill the download
         downloadManager.removeEpisodeFromQueue(episode, "file deleted")
-
-        // if the episode is currently playing, then stop it. Note: it will not be stopped if coming from the player as it is controlling the playback logic.
-        if (removeFromUpNext) {
-            playbackManager?.removeEpisode(episode, source = SourceView.UNKNOWN, userInitiated = false, shouldShuffleUpNext = shouldShuffleUpNext)
-        }
 
         cleanUpDownloadFiles(episode)
 
@@ -683,14 +678,8 @@ class EpisodeManagerImpl @Inject constructor(
     @Suppress("NAME_SHADOWING")
     private suspend fun cleanUpEpisode(episode: BaseEpisode, playbackManager: PlaybackManager?, shouldShuffleUpNext: Boolean = false) {
         val playbackManager = playbackManager ?: return
-        if (episode.isDownloaded || episode.isDownloading || episode.downloadTaskId != null) {
-            // FIXME doesn't seem this is necessary since it is handled by deleteEpisodeFile
-            downloadManager.removeEpisodeFromQueue(episode, "episode manager")
-        }
-        deleteEpisodeFile(episode, playbackManager, disableAutoDownload = true, updateDatabase = true, removeFromUpNext = true, shouldShuffleUpNext = shouldShuffleUpNext)
-
-        // FIXME doesn't seem this is necessary since it is handled by deleteEpisodeFile
-        playbackManager.removeEpisode(episode, source = SourceView.UNKNOWN, userInitiated = false)
+        deleteEpisodeFile(episode, playbackManager, disableAutoDownload = true, updateDatabase = true)
+        playbackManager.removeEpisode(episode, source = SourceView.UNKNOWN, userInitiated = false, shouldShuffleUpNext = shouldShuffleUpNext)
     }
 
     override suspend fun findStaleDownloads(): List<PodcastEpisode> {
@@ -780,16 +769,15 @@ class EpisodeManagerImpl @Inject constructor(
         episodeDao.deleteAll()
     }
 
-    override fun deleteEpisodesAsync(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager) {
-        val episodesCopy = episodes.toList()
+    override fun deleteEpisodeFilesAsync(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager) {
         launch {
-            deleteEpisodeFiles(episodesCopy, playbackManager)
+            deleteEpisodeFiles(episodes, playbackManager)
         }
     }
 
-    override suspend fun deleteEpisodeFiles(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager, removeFromUpNext: Boolean) = withContext(Dispatchers.IO) {
+    override suspend fun deleteEpisodeFiles(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager) = withContext(Dispatchers.IO) {
         episodes.toList().forEach {
-            deleteEpisodeFile(it, playbackManager, removeFromUpNext = removeFromUpNext, disableAutoDownload = false)
+            deleteEpisodeFile(it, playbackManager, disableAutoDownload = false)
         }
     }
 
@@ -858,7 +846,7 @@ class EpisodeManagerImpl @Inject constructor(
         }
         if (addedEpisodes.isNotEmpty()) {
             addedEpisodes.chunked(250).forEach { chunkedEpisodes ->
-                episodeDao.insertAll(chunkedEpisodes)
+                episodeDao.insertAllOrIgnore(chunkedEpisodes)
             }
         }
 
@@ -875,23 +863,12 @@ class EpisodeManagerImpl @Inject constructor(
         }
     }
 
-    override fun findEpisodesToSyncBlocking(): List<PodcastEpisode> {
-        return episodeDao.findEpisodesToSyncBlocking()
-    }
-
     override suspend fun findEpisodesToSync(): List<PodcastEpisode> {
         return episodeDao.findEpisodesToSync()
     }
 
     override fun findEpisodesForHistorySyncBlocking(): List<PodcastEpisode> {
         return episodeDao.findEpisodesForHistorySyncBlocking()
-    }
-
-    override suspend fun markAllEpisodesSynced(episodes: List<PodcastEpisode>) {
-        val episodeUuids = episodes.map { it.uuid }
-        episodeUuids.chunked(500).forEach { chunked ->
-            episodeDao.markAllSynced(chunked)
-        }
     }
 
     // Playback manager is only optional for UI tests. Should never be optional in the app but can't work out

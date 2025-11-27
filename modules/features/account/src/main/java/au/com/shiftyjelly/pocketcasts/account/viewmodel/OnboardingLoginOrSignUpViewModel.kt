@@ -4,9 +4,8 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
+import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsParameter
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
-import au.com.shiftyjelly.pocketcasts.analytics.AppsFlyerAnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
@@ -29,7 +28,6 @@ class OnboardingLoginOrSignUpViewModel @Inject constructor(
     @ApplicationContext context: Context,
     private val podcastManager: PodcastManager,
     private val userAnalyticsSettings: UserAnalyticsSettings,
-    private val appsFlyerAnalyticsTracker: AppsFlyerAnalyticsTracker,
     settings: Settings,
 ) : AndroidViewModel(context as Application) {
 
@@ -39,7 +37,6 @@ class OnboardingLoginOrSignUpViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState
-    val isTrackingConsentRequired: StateFlow<Boolean> = settings.isTrackingConsentRequired.flow
 
     sealed class UiState {
         object Loading : UiState()
@@ -55,50 +52,35 @@ class OnboardingLoginOrSignUpViewModel @Inject constructor(
     }
 
     fun onShown(flow: OnboardingFlow) {
-        analyticsTracker.track(
-            AnalyticsEvent.SETUP_ACCOUNT_SHOWN,
-            mapOf(AnalyticsProp.flow(flow)),
-        )
+        analyticsTracker.trackOnboardingIntroCarouselShown(flow.analyticsValue)
     }
 
     fun onDismiss(flow: OnboardingFlow) {
-        analyticsTracker.track(
-            AnalyticsEvent.SETUP_ACCOUNT_DISMISSED,
-            mapOf(AnalyticsProp.flow(flow)),
-        )
+        analyticsTracker.trackSetupAccountDismissed(flow.analyticsValue)
     }
 
     fun onSignUpClicked(flow: OnboardingFlow) {
-        analyticsTracker.track(
-            AnalyticsEvent.SETUP_ACCOUNT_BUTTON_TAPPED,
-            mapOf(AnalyticsProp.flow(flow), AnalyticsProp.ButtonTapped.createAccount),
+        analyticsTracker.trackSetupAccountButtonTapped(
+            flow = flow.analyticsValue,
+            button = AnalyticsParameter.SetupAccountButton.CreateAccount,
+        )
+    }
+
+    fun onGetStartedClicked(flow: OnboardingFlow) {
+        analyticsTracker.trackOnboardingGetStarted(
+            flow = flow.analyticsValue,
+        )
+        // keep it consistent with iOS
+        analyticsTracker.trackSetupAccountButtonTapped(
+            flow = flow.analyticsValue,
+            button = AnalyticsParameter.SetupAccountButton.GetStarted,
         )
     }
 
     fun onLoginClicked(flow: OnboardingFlow) {
-        analyticsTracker.track(
-            AnalyticsEvent.SETUP_ACCOUNT_BUTTON_TAPPED,
-            mapOf(AnalyticsProp.flow(flow), AnalyticsProp.ButtonTapped.signIn),
+        analyticsTracker.trackSetupAccountButtonTapped(
+            flow = flow.analyticsValue,
+            button = AnalyticsParameter.SetupAccountButton.SignIn,
         )
-    }
-
-    fun updateTrackingConsent(consent: Boolean) {
-        userAnalyticsSettings.updateAnalyticsThirdPartySetting(consent)
-        // As we need consent to be set before we start tracking, we need to track the install event here
-        if (consent) {
-            appsFlyerAnalyticsTracker.track(AnalyticsEvent.APPLICATION_INSTALLED)
-        }
-    }
-
-    companion object {
-        object AnalyticsProp {
-            fun flow(flow: OnboardingFlow) = "flow" to flow.analyticsValue
-            object ButtonTapped {
-                private const val BUTTON = "button"
-                val signIn = BUTTON to "sign_in"
-                val createAccount = BUTTON to "create_account"
-                val continueWithGoogle = BUTTON to "continue_with_google"
-            }
-        }
     }
 }

@@ -1,5 +1,6 @@
 package au.com.shiftyjelly.pocketcasts.repositories.di
 
+import android.content.Context
 import androidx.work.WorkerFactory
 import au.com.shiftyjelly.pocketcasts.analytics.AccountStatusInfo
 import au.com.shiftyjelly.pocketcasts.crashlogging.CrashReportPermissionCheck
@@ -8,6 +9,10 @@ import au.com.shiftyjelly.pocketcasts.models.to.TranscriptType
 import au.com.shiftyjelly.pocketcasts.payment.PurchaseApprover
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.preferences.SettingsImpl
+import au.com.shiftyjelly.pocketcasts.repositories.ads.BlazeAdsManager
+import au.com.shiftyjelly.pocketcasts.repositories.ads.BlazeAdsManagerImpl
+import au.com.shiftyjelly.pocketcasts.repositories.appreview.AppReviewManager
+import au.com.shiftyjelly.pocketcasts.repositories.appreview.AppReviewManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.bookmark.BookmarkManager
 import au.com.shiftyjelly.pocketcasts.repositories.bookmark.BookmarkManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.chromecast.CastManager
@@ -18,6 +23,8 @@ import au.com.shiftyjelly.pocketcasts.repositories.endofyear.EndOfYearManager
 import au.com.shiftyjelly.pocketcasts.repositories.endofyear.EndOfYearManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.endofyear.EndOfYearSync
 import au.com.shiftyjelly.pocketcasts.repositories.endofyear.EndOfYearSyncImpl
+import au.com.shiftyjelly.pocketcasts.repositories.external.ExternalDataManager
+import au.com.shiftyjelly.pocketcasts.repositories.external.ExternalDataManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.history.upnext.UpNextHistoryManager
 import au.com.shiftyjelly.pocketcasts.repositories.history.upnext.UpNextHistoryManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationDrawer
@@ -28,8 +35,6 @@ import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationMana
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationScheduler
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationSchedulerImpl
-import au.com.shiftyjelly.pocketcasts.repositories.nova.ExternalDataManager
-import au.com.shiftyjelly.pocketcasts.repositories.nova.ExternalDataManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlayerFactory
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlayerFactoryImpl
 import au.com.shiftyjelly.pocketcasts.repositories.playback.UpNextQueue
@@ -52,6 +57,8 @@ import au.com.shiftyjelly.pocketcasts.repositories.ratings.RatingsManager
 import au.com.shiftyjelly.pocketcasts.repositories.ratings.RatingsManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.referrals.ReferralManager
 import au.com.shiftyjelly.pocketcasts.repositories.referrals.ReferralManagerImpl
+import au.com.shiftyjelly.pocketcasts.repositories.search.ImprovedSearchManager
+import au.com.shiftyjelly.pocketcasts.repositories.search.ImprovedSearchManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.searchhistory.SearchHistoryManager
 import au.com.shiftyjelly.pocketcasts.repositories.searchhistory.SearchHistoryManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.subscription.ServerPurchaseApprover
@@ -77,11 +84,14 @@ import au.com.shiftyjelly.pocketcasts.repositories.user.StatsManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserSettingsCrashReportPermission
+import com.google.android.play.core.review.ReviewManager
+import com.google.android.play.core.review.ReviewManagerFactory
 import com.squareup.moshi.Moshi
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoMap
 import javax.inject.Singleton
@@ -101,6 +111,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun providesPodcastManager(podcastManagerImpl: PodcastManagerImpl): PodcastManager
+
+    @Binds
+    @Singleton
+    abstract fun bindAutoCompleteSearchManager(impl: ImprovedSearchManagerImpl): ImprovedSearchManager
 
     @Binds
     @Singleton
@@ -221,6 +235,12 @@ abstract class RepositoryModule {
     @Binds
     abstract fun providePlaylistManager(playlistManagerImpl: PlaylistManagerImpl): PlaylistManager
 
+    @Binds
+    abstract fun provideBlazeAdsManager(blazeAdsManagerImpl: BlazeAdsManagerImpl): BlazeAdsManager
+
+    @Binds
+    abstract fun provideAppReviewManager(appReviewManagerImpl: AppReviewManagerImpl): AppReviewManager
+
     companion object {
         @Provides
         @IntoMap
@@ -248,6 +268,12 @@ abstract class RepositoryModule {
         @TranscriptTypeKey(TranscriptType.Html)
         fun provideHtmlParser(): TranscriptParser {
             return HtmlParser()
+        }
+
+        @Provides
+        @Singleton
+        fun provideGoogleReviewManager(@ApplicationContext context: Context): ReviewManager {
+            return ReviewManagerFactory.create(context)
         }
     }
 }

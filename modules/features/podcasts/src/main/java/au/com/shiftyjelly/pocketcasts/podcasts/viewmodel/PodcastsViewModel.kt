@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
-import au.com.shiftyjelly.pocketcasts.compose.ad.BlazeAd
 import au.com.shiftyjelly.pocketcasts.models.entity.Folder
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
 import au.com.shiftyjelly.pocketcasts.models.to.FolderItem
@@ -13,6 +12,7 @@ import au.com.shiftyjelly.pocketcasts.models.type.SignInState
 import au.com.shiftyjelly.pocketcasts.podcasts.view.folders.SuggestedFoldersPopupPolicy
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.preferences.model.BadgeType
+import au.com.shiftyjelly.pocketcasts.repositories.ads.BlazeAdsManager
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationHelper
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.FolderManager
@@ -25,7 +25,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.Collections
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -33,18 +32,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel(assistedFactory = PodcastsViewModel.Factory::class)
@@ -58,6 +56,7 @@ class PodcastsViewModel @AssistedInject constructor(
     private val suggestedFoldersPopupPolicy: SuggestedFoldersPopupPolicy,
     private val userManager: UserManager,
     private val notificationHelper: NotificationHelper,
+    blazeAdsManager: BlazeAdsManager,
     @Assisted private val folderUuid: String?,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(UiState(isLoadingItems = true))
@@ -79,26 +78,7 @@ class PodcastsViewModel @AssistedInject constructor(
     }
 
     val activeAd = if (folderUuid == null) {
-        combine(
-            userManager.getSignInState().asFlow(),
-            FeatureFlag.isEnabledFlow(Feature.BANNER_ADS),
-            ::Pair,
-        ).flatMapLatest { (signInState, isEnabled) ->
-            flow<BlazeAd?> {
-                val ad = if (isEnabled && signInState.isNoAccountOrFree) {
-                    BlazeAd(
-                        id = "ad-id",
-                        title = "wordpress.com",
-                        ctaText = "Democratize publishing and eCommerce one website at a time.",
-                        ctaUrl = "https://wordpress.com/",
-                        imageUrl = "https://s.w.org/style/images/about/WordPress-logotype-simplified.png",
-                    )
-                } else {
-                    null
-                }
-                emit(ad)
-            }
-        }
+        blazeAdsManager.findPodcastListAd()
     } else {
         flowOf(null)
     }.stateIn(viewModelScope, started = SharingStarted.Eagerly, initialValue = null)
@@ -117,7 +97,6 @@ class PodcastsViewModel @AssistedInject constructor(
                     else -> podcastManager.observePodcastsSortedByLatestEpisode()
                 }
             }
-            .distinctByPodcastDetails()
 
         val foldersFlow: Flow<List<FolderItem.Folder>> = folderManager.observeFolders()
             .flatMapLatest { folders ->
@@ -132,7 +111,6 @@ class PodcastsViewModel @AssistedInject constructor(
                     val folderPodcasts = filteredFolders.map { folder ->
                         podcastManager
                             .observePodcastsSortedByUserChoice(folder)
-                            .distinctByPodcastDetails()
                             .map { podcasts -> FolderItem.Folder(folder, podcasts) }
                     }
                     combine(folderPodcasts) { array -> array.toList() }
@@ -146,9 +124,7 @@ class PodcastsViewModel @AssistedInject constructor(
             userManager.getSignInState().asFlow(),
         ) { podcasts, folders, sortType, signInState ->
             withContext(Dispatchers.Default) {
-                val state = buildUiState(podcasts, folders, sortType, signInState)
-                adapterState = state.items.toMutableList()
-                state
+                buildUiState(podcasts, folders, sortType, signInState)
             }
         }
     }
@@ -161,7 +137,9 @@ class PodcastsViewModel @AssistedInject constructor(
     ) = UiState(
         items = when {
             signInState.isNoAccountOrFree -> buildPodcastItems(podcasts, sortType)
+
             folderUuid == null -> buildHomeFolderItems(podcasts, folders, sortType)
+
             else -> folders.find { it.uuid == folderUuid }
                 ?.podcasts
                 ?.map(FolderItem::Podcast)
@@ -235,36 +213,26 @@ class PodcastsViewModel @AssistedInject constructor(
 
     val refreshStateFlow = settings.refreshStateFlow
 
-    private var adapterState: MutableList<FolderItem> = mutableListOf()
-
-    /**
-     * User rearranges the grid with a drag
-     */
-    fun moveFolderItem(fromPosition: Int, toPosition: Int): List<FolderItem> {
-        if (adapterState.isEmpty()) {
-            return adapterState
-        }
-
-        try {
-            if (fromPosition < toPosition) {
-                for (index in fromPosition until toPosition) {
-                    Collections.swap(adapterState, index, index + 1)
-                }
-            } else {
-                for (index in fromPosition downTo toPosition + 1) {
-                    Collections.swap(adapterState, index, index - 1)
-                }
-            }
-        } catch (ex: IndexOutOfBoundsException) {
-            Timber.e("Move folder item failed: $ex")
-        }
-
-        return adapterState.toList()
-    }
-
-    fun commitMoves() {
+    suspend fun reorderItems(items: List<FolderItem>) {
+        analyticsTracker.track(AnalyticsEvent.PODCASTS_LIST_REORDERED)
         viewModelScope.launch {
-            saveSortOrder()
+            if (folderUuid == null) {
+                settings.podcastsSortType.set(PodcastsSortType.DRAG_DROP, updateModifiedAt = true)
+            } else {
+                folderManager.updateSortType(folderUuid, PodcastsSortType.DRAG_DROP)
+            }
+            folderManager.updateSortPosition(items)
+        }
+
+        // Wait until the UI state is synchronized with the ordered items.
+        // This ensures smoother transitions — items won’t jump around
+        // if an intermediate state is emitted during ordering.
+        return withContext(Dispatchers.Default) {
+            val sortedUuids = items.map(FolderItem::uuid)
+            uiState
+                .map { state -> state.items.map(FolderItem::uuid) }
+                .takeWhile { stateUuids -> stateUuids.size == sortedUuids.size && stateUuids != sortedUuids }
+                .collect()
         }
     }
 
@@ -278,17 +246,6 @@ class PodcastsViewModel @AssistedInject constructor(
 
     fun updateNotificationsPermissionState() {
         notificationsPermissionState.value = notificationHelper.hasNotificationsPermission()
-    }
-
-    private suspend fun saveSortOrder() {
-        folderManager.updateSortPosition(adapterState)
-
-        val folder = uiState.value.folder
-        if (folder == null) {
-            settings.podcastsSortType.set(PodcastsSortType.DRAG_DROP, updateModifiedAt = true)
-        } else {
-            folderManager.updateSortType(folderUuid = folder.uuid, podcastsSortType = PodcastsSortType.DRAG_DROP)
-        }
     }
 
     fun updateFolderSort(uuid: String, podcastsSortType: PodcastsSortType) {
@@ -340,19 +297,6 @@ class PodcastsViewModel @AssistedInject constructor(
 
     fun isEligibleForSuggestedFoldersPopup(): Boolean {
         return suggestedFoldersPopupPolicy.isEligibleForPopup()
-    }
-
-    private fun Flow<List<Podcast>>.distinctByPodcastDetails() = distinctUntilChanged { old, new ->
-        if (old.size != new.size) return@distinctUntilChanged false
-
-        old.zip(new).all { (oldPodcast, newPodcast) ->
-            oldPodcast.uuid == newPodcast.uuid &&
-                oldPodcast.title == newPodcast.title &&
-                oldPodcast.author == newPodcast.author &&
-                oldPodcast.addedDate == newPodcast.addedDate &&
-                oldPodcast.podcastCategory == newPodcast.podcastCategory &&
-                oldPodcast.folderUuid == newPodcast.folderUuid
-        }
     }
 
     fun shouldShowTooltip() = FeatureFlag.isEnabled(Feature.PODCASTS_SORT_CHANGES) && settings.showPodcastsRecentlyPlayedSortOrderTooltip.value

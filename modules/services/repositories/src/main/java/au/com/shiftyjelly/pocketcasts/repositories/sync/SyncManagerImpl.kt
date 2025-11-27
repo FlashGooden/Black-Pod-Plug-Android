@@ -6,7 +6,7 @@ import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.analytics.TracksAnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.models.entity.Bookmark
-import au.com.shiftyjelly.pocketcasts.models.entity.SmartPlaylist
+import au.com.shiftyjelly.pocketcasts.models.entity.PlaylistEntity
 import au.com.shiftyjelly.pocketcasts.models.entity.UserEpisode
 import au.com.shiftyjelly.pocketcasts.models.to.HistorySyncRequest
 import au.com.shiftyjelly.pocketcasts.models.to.HistorySyncResponse
@@ -44,16 +44,19 @@ import au.com.shiftyjelly.pocketcasts.servers.sync.history.HistoryYearResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.login.ExchangeSonosResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginTokenResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.parseErrorResponse
-import au.com.shiftyjelly.pocketcasts.servers.sync.update.SyncUpdateResponse
 import au.com.shiftyjelly.pocketcasts.utils.Optional
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import com.jakewharton.rxrelay2.BehaviorRelay
 import com.pocketcasts.service.api.BookmarksResponse
+import com.pocketcasts.service.api.EpisodesResponse
 import com.pocketcasts.service.api.PodcastRatingResponse
 import com.pocketcasts.service.api.PodcastRatingsResponse
+import com.pocketcasts.service.api.PodcastsEpisodesRequest
 import com.pocketcasts.service.api.ReferralCodeResponse
 import com.pocketcasts.service.api.ReferralRedemptionResponse
 import com.pocketcasts.service.api.ReferralValidationResponse
+import com.pocketcasts.service.api.SyncUpdateRequest
+import com.pocketcasts.service.api.SyncUpdateResponse
 import com.pocketcasts.service.api.UserPlaylistListResponse
 import com.pocketcasts.service.api.UserPodcastListResponse
 import com.pocketcasts.service.api.WinbackResponse
@@ -65,7 +68,6 @@ import io.reactivex.Maybe
 import io.reactivex.Single
 import java.io.File
 import java.net.HttpURLConnection
-import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -74,8 +76,6 @@ import retrofit2.HttpException
 import retrofit2.Response
 import timber.log.Timber
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
-import com.pocketcasts.service.api.SyncUpdateRequest as SyncUpdateProtoRequest
-import com.pocketcasts.service.api.SyncUpdateResponse as SyncUpdateProtoResponse
 
 @Singleton
 class SyncManagerImpl @Inject constructor(
@@ -271,14 +271,8 @@ class SyncManagerImpl @Inject constructor(
     override fun uploadFileToServerRxCompletable(episode: UserEpisode): Completable = getCacheTokenOrLoginRxSingle { token ->
         syncServiceManager.getFileUploadUrl(episode.toUploadData(), token)
     }.flatMapCompletable { url ->
-        Timber.d("Upload url $url")
         syncServiceManager.uploadToServer(episode, url)
-            .doOnNext { progress ->
-                Timber.d("Progress $progress")
-                UploadProgressManager.uploadObservers[episode.uuid]?.forEach { consumer ->
-                    consumer.accept(progress)
-                }
-            }
+            .doOnNext { progress -> UploadProgressManager.pushProgress(episode.uuid, progress) }
             .ignoreElements()
     }
 
@@ -345,13 +339,7 @@ class SyncManagerImpl @Inject constructor(
 
 // Sync
 
-    override suspend fun syncUpdate(data: String, lastSyncTime: Instant): SyncUpdateResponse = getEmail()?.let { email ->
-        getCacheTokenOrLogin { token ->
-            syncServiceManager.syncUpdate(email, data, lastSyncTime, token)
-        }
-    } ?: throw Exception("Not logged in")
-
-    override suspend fun syncUpdateOrThrow(request: SyncUpdateProtoRequest): SyncUpdateProtoResponse = getCacheTokenOrLogin { token ->
+    override suspend fun syncUpdateOrThrow(request: SyncUpdateRequest): SyncUpdateResponse = getCacheTokenOrLogin { token ->
         syncServiceManager.syncUpdateOrThrow(token, request)
     }
 
@@ -373,6 +361,10 @@ class SyncManagerImpl @Inject constructor(
 
     override suspend fun getBookmarksOrThrow(): BookmarksResponse = getCacheTokenOrLogin { token ->
         syncServiceManager.getBookmarks(token)
+    }
+
+    override suspend fun getEpisodesOrThrow(request: PodcastsEpisodesRequest): EpisodesResponse = getCacheTokenOrLogin { token ->
+        syncServiceManager.getEpisodes(request, token)
     }
 
     override fun getPodcastEpisodesRxSingle(podcastUuid: String): Single<PodcastEpisodesResponse> = getCacheTokenOrLoginRxSingle { token ->
@@ -403,7 +395,7 @@ class SyncManagerImpl @Inject constructor(
         syncServiceManager.exchangeSonos(token)
     }
 
-    override suspend fun getFilters(): List<SmartPlaylist> = getCacheTokenOrLogin { token ->
+    override suspend fun getFilters(): List<PlaylistEntity> = getCacheTokenOrLogin { token ->
         syncServiceManager.getFilters(token)
     }
 

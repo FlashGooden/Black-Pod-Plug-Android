@@ -1,8 +1,7 @@
 package au.com.shiftyjelly.pocketcasts.servers.sync
 
 import android.os.Build
-import au.com.shiftyjelly.pocketcasts.models.entity.Bookmark
-import au.com.shiftyjelly.pocketcasts.models.entity.SmartPlaylist
+import au.com.shiftyjelly.pocketcasts.models.entity.PlaylistEntity
 import au.com.shiftyjelly.pocketcasts.models.entity.UserEpisode
 import au.com.shiftyjelly.pocketcasts.models.to.HistorySyncRequest
 import au.com.shiftyjelly.pocketcasts.models.to.HistorySyncResponse
@@ -12,7 +11,6 @@ import au.com.shiftyjelly.pocketcasts.preferences.RefreshToken
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.servers.di.Cached
 import au.com.shiftyjelly.pocketcasts.servers.di.SyncServiceRetrofit
-import au.com.shiftyjelly.pocketcasts.servers.sync.bookmark.toBookmark
 import au.com.shiftyjelly.pocketcasts.servers.sync.forgotpassword.ForgotPasswordRequest
 import au.com.shiftyjelly.pocketcasts.servers.sync.forgotpassword.ForgotPasswordResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.history.HistoryYearResponse
@@ -25,16 +23,19 @@ import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginTokenResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.register.RegisterRequest
 import au.com.shiftyjelly.pocketcasts.utils.extensions.parseIsoDate
 import com.pocketcasts.service.api.BookmarksResponse
+import com.pocketcasts.service.api.EpisodesResponse
 import com.pocketcasts.service.api.PodcastRatingAddRequest
 import com.pocketcasts.service.api.PodcastRatingResponse
 import com.pocketcasts.service.api.PodcastRatingShowRequest
 import com.pocketcasts.service.api.PodcastRatingsResponse
+import com.pocketcasts.service.api.PodcastsEpisodesRequest
 import com.pocketcasts.service.api.ReferralCodeResponse
 import com.pocketcasts.service.api.ReferralRedemptionRequest
 import com.pocketcasts.service.api.ReferralRedemptionResponse
 import com.pocketcasts.service.api.ReferralValidationResponse
 import com.pocketcasts.service.api.SupportFeedbackRequest
-import com.pocketcasts.service.api.UserPlaylistListRequest
+import com.pocketcasts.service.api.SyncUpdateRequest
+import com.pocketcasts.service.api.SyncUpdateResponse
 import com.pocketcasts.service.api.UserPlaylistListResponse
 import com.pocketcasts.service.api.UserPodcastListResponse
 import com.pocketcasts.service.api.WinbackResponse
@@ -46,7 +47,6 @@ import io.reactivex.Completable
 import io.reactivex.Flowable
 import io.reactivex.Single
 import java.io.File
-import java.time.Instant
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,8 +55,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.Response
 import retrofit2.Retrofit
-import com.pocketcasts.service.api.SyncUpdateRequest as SyncUpdateProtoRequest
-import com.pocketcasts.service.api.SyncUpdateResponse as SyncUpdateProtoResponse
 
 /**
  * The only class outside of the server module that should use this class is the
@@ -143,20 +141,7 @@ open class SyncServiceManager @Inject constructor(
 
     suspend fun namedSettings(request: NamedSettingsRequest, token: AccessToken): NamedSettingsResponse = service.namedSettings(addBearer(token), request)
 
-    suspend fun syncUpdate(email: String, data: String, lastSyncTime: Instant, token: AccessToken): au.com.shiftyjelly.pocketcasts.servers.sync.update.SyncUpdateResponse {
-        val fields = mutableMapOf(
-            "email" to email,
-            "token" to token.value,
-            "data" to data,
-            "device_utc_time_ms" to System.currentTimeMillis().toString(),
-            "last_modified" to lastSyncTime.toString(),
-        )
-        addDeviceFields(fields)
-
-        return service.syncUpdate(fields)
-    }
-
-    suspend fun syncUpdateOrThrow(token: AccessToken, request: SyncUpdateProtoRequest): SyncUpdateProtoResponse {
+    suspend fun syncUpdateOrThrow(token: AccessToken, request: SyncUpdateRequest): SyncUpdateResponse {
         return service.syncUpdate(addBearer(token), request)
     }
 
@@ -174,7 +159,7 @@ open class SyncServiceManager @Inject constructor(
         return service.getPodcastEpisodes(addBearer(token), request)
     }
 
-    suspend fun getFilters(token: AccessToken): List<SmartPlaylist> {
+    suspend fun getFilters(token: AccessToken): List<PlaylistEntity> {
         val response = service.getFilterList(addBearer(token), buildBasicRequest())
         return response.filters?.mapNotNull { it.toFilter() } ?: emptyList()
     }
@@ -185,6 +170,10 @@ open class SyncServiceManager @Inject constructor(
 
     suspend fun getBookmarks(token: AccessToken): BookmarksResponse {
         return service.getBookmarkList(addBearer(token), bookmarkRequest {})
+    }
+
+    suspend fun getEpisodes(request: PodcastsEpisodesRequest, token: AccessToken): EpisodesResponse {
+        return service.getEpisodes(addBearer(token), request)
     }
 
     fun historySync(request: HistorySyncRequest, token: AccessToken): Single<HistorySyncResponse> = service.historySync(addBearer(token), request)

@@ -141,7 +141,13 @@ private fun Content(
         onboardingRecommendationsFlowGraph(
             theme,
             flow = flow,
-            onBackPress = { exitOnboarding(OnboardingExitInfo.Simple) },
+            onBackPress = {
+                if (FeatureFlag.isEnabled(Feature.NEW_ONBOARDING_ACCOUNT_CREATION)) {
+                    navController.popBackStack()
+                } else {
+                    exitOnboarding(OnboardingExitInfo.Simple)
+                }
+            },
             onComplete = {
                 val route = if (FeatureFlag.isEnabled(Feature.NEW_ONBOARDING_ACCOUNT_CREATION)) {
                     NewOnboardingFlow.ROUTE_SIGN_UP
@@ -217,7 +223,7 @@ private fun onLoginToExistingAccount(
         is OnboardingFlow.NewOnboardingAccountUpgrade,
         -> {
             if (subscription == null) {
-                navController.navigate(OldOnboardingFlow.PlusUpgrade.routeWithSource(OnboardingUpgradeSource.LOGIN)) {
+                navController.navigate(OldOnboardingFlow.PlusUpgrade.routeWithSource(source = flow.source, forcePurchase = true)) {
                     // clear backstack after successful login
                     val route = if (FeatureFlag.isEnabled(Feature.NEW_ONBOARDING_ACCOUNT_CREATION)) {
                         OldOnboardingFlow.LOG_IN_OR_SIGN_UP

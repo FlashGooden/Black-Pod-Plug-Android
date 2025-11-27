@@ -82,7 +82,6 @@ import au.com.shiftyjelly.pocketcasts.compose.LocalPodcastColors
 import au.com.shiftyjelly.pocketcasts.compose.PlayerColors
 import au.com.shiftyjelly.pocketcasts.compose.PodcastColors
 import au.com.shiftyjelly.pocketcasts.compose.ad.AdBanner
-import au.com.shiftyjelly.pocketcasts.compose.ad.BlazeAd
 import au.com.shiftyjelly.pocketcasts.compose.ad.rememberAdColors
 import au.com.shiftyjelly.pocketcasts.compose.adaptive.isAtLeastMediumHeight
 import au.com.shiftyjelly.pocketcasts.compose.adaptive.isAtLeastMediumWidth
@@ -90,6 +89,7 @@ import au.com.shiftyjelly.pocketcasts.compose.components.AnimatedNonNullVisibili
 import au.com.shiftyjelly.pocketcasts.compose.components.rememberNestedScrollLockableInteropConnection
 import au.com.shiftyjelly.pocketcasts.compose.extensions.contentWithoutConsumedInsets
 import au.com.shiftyjelly.pocketcasts.compose.theme
+import au.com.shiftyjelly.pocketcasts.models.entity.BlazeAd
 import au.com.shiftyjelly.pocketcasts.models.to.Transcript
 import au.com.shiftyjelly.pocketcasts.player.R
 import au.com.shiftyjelly.pocketcasts.player.view.bookmark.BookmarkActivity
@@ -130,6 +130,7 @@ import au.com.shiftyjelly.pocketcasts.views.fragments.BaseFragment
 import au.com.shiftyjelly.pocketcasts.views.helper.CloudDeleteHelper
 import au.com.shiftyjelly.pocketcasts.views.helper.UiUtil
 import au.com.shiftyjelly.pocketcasts.views.helper.WarningsHelper
+import au.com.shiftyjelly.pocketcasts.views.swipe.AddToPlaylistFragmentFactory
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
@@ -159,6 +160,9 @@ class PlayerHeaderFragment :
 
     @Inject
     lateinit var warningsHelper: WarningsHelper
+
+    @Inject
+    lateinit var addToPlaylistFragmentFactory: AddToPlaylistFragmentFactory
 
     private val viewModel: PlayerViewModel by activityViewModels()
     private val shelfSharedViewModel: ShelfSharedViewModel by activityViewModels()
@@ -322,8 +326,10 @@ class PlayerHeaderFragment :
                             EffectsFragment().show(parentFragmentManager, "effects")
                         }
 
-                        NavigationState.ShowSleepTimerOptions -> {
-                            SleepFragment().show(parentFragmentManager, "sleep_sheet")
+                        is NavigationState.ShowSleepTimerOptions -> {
+                            SleepFragment
+                                .newInstance(navigationState.hasChapters)
+                                .show(parentFragmentManager, "sleep_sheet")
                         }
 
                         is NavigationState.ShowShareDialog -> {
@@ -389,6 +395,18 @@ class PlayerHeaderFragment :
                         }
 
                         is NavigationState.StartUpsellFlow -> startUpsellFlow(navigationState.source)
+
+                        is NavigationState.AddEpisodeToPlaylist -> {
+                            if (parentFragmentManager.findFragmentByTag("add-to-playlist") == null) {
+                                val fragment = addToPlaylistFragmentFactory.create(
+                                    source = AddToPlaylistFragmentFactory.Source.Shelf,
+                                    episodeUuid = navigationState.episodeUuid,
+                                    podcastUuid = navigationState.podcastUuid,
+                                    customTheme = Theme.ThemeType.DARK,
+                                )
+                                fragment.show(parentFragmentManager, "add-to-playlist")
+                            }
+                        }
                     }
                 }
             }
@@ -499,25 +517,19 @@ class PlayerHeaderFragment :
 
         Snackbar.make(view, snackbarMessage, Snackbar.LENGTH_LONG)
             .setAction(LR.string.settings_view, viewBookmarksAction)
-            .setActionTextColor(result.tintColor)
-            .setBackgroundTint(ThemeColor.primaryUi01(Theme.ThemeType.DARK))
-            .setTextColor(ThemeColor.primaryText01(Theme.ThemeType.DARK))
             .show()
     }
 
     private fun showSnackBar(text: CharSequence) {
         parentFragment?.view?.let {
-            Snackbar.make(it, text, Snackbar.LENGTH_SHORT)
-                .setBackgroundTint(ThemeColor.primaryUi01(Theme.ThemeType.LIGHT))
-                .setTextColor(ThemeColor.primaryText01(Theme.ThemeType.LIGHT))
-                .show()
+            Snackbar.make(it, text, Snackbar.LENGTH_SHORT).show()
         }
     }
 
     private fun openAd(ad: BlazeAd) {
         viewModel.trackAdTapped(ad)
         runCatching {
-            val intent = Intent(Intent.ACTION_VIEW, ad.ctaUrl.toUri())
+            val intent = Intent(Intent.ACTION_VIEW, ad.url.toUri())
             startActivity(intent)
         }.onFailure { LogBuffer.e("Ads", it, "Failed to open an ad: ${ad.id}") }
     }
@@ -930,7 +942,7 @@ class PlayerHeaderFragment :
                     )
                     transcriptViewModel.track(AnalyticsEvent.TRANSCRIPT_SHOWN, properties)
                 },
-                onShowTransciptPaywall = {
+                onShowTranscriptPaywall = {
                     transcriptViewModel.track(AnalyticsEvent.TRANSCRIPT_GENERATED_PAYWALL_SHOWN)
                 },
                 toolbarTrailingContent = { toolbarColors ->

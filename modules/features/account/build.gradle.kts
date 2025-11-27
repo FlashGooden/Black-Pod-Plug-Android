@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.coil)
+    implementation(libs.coil.compose)
     implementation(libs.compose.activity)
     implementation(libs.compose.animation)
     implementation(libs.compose.constraintlayout)
@@ -74,6 +75,9 @@ dependencies {
     implementation(libs.rx2.kotlin)
     implementation(libs.rx2.relay)
     implementation(libs.timber)
+    implementation(libs.credentials)
+    implementation(libs.credentials.google.play)
+    implementation(libs.google.identity)
 
     implementation(projects.modules.features.cartheme)
     implementation(projects.modules.services.images)

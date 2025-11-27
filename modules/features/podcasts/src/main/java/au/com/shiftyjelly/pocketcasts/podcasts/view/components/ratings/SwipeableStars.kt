@@ -43,7 +43,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import au.com.shiftyjelly.pocketcasts.compose.theme
 import kotlin.math.abs
 import kotlin.math.max
@@ -79,6 +79,7 @@ fun SwipeableStars(
     LaunchedEffect(touchX, desiredStopPoint) {
         when (changeType) {
             ChangeType.Immediate -> sliderPosition.snapTo(touchX)
+
             ChangeType.Animated -> sliderPosition.animateTo(
                 targetValue = desiredStopPoint,
                 animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
@@ -205,7 +206,9 @@ private fun getDesiredStopPoint(
     initialRate: Int?,
 ) = remember(stopPoints, touchX, stopPointType) {
     when (stopPointType) {
-        StopPointType.None -> touchX // ignore stop points
+        StopPointType.None -> touchX
+
+        // ignore stop points
 
         StopPointType.InitialStars -> {
             if (initialRate == null) return@remember touchX

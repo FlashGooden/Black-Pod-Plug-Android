@@ -22,6 +22,7 @@ import androidx.appcompat.widget.Toolbar
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
+import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -31,11 +32,14 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.dynamicanimation.animation.DynamicAnimation.TRANSLATION_Y
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
 import androidx.lifecycle.asFlow
+import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.mediarouter.media.MediaControlIntent
@@ -54,6 +58,7 @@ import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.analytics.EpisodeAnalytics
 import au.com.shiftyjelly.pocketcasts.analytics.SourceView
+import au.com.shiftyjelly.pocketcasts.appreview.AppReviewDialogFragment
 import au.com.shiftyjelly.pocketcasts.compose.AppTheme
 import au.com.shiftyjelly.pocketcasts.databinding.ActivityMainBinding
 import au.com.shiftyjelly.pocketcasts.deeplink.AddBookmarkDeepLink
@@ -122,8 +127,8 @@ import au.com.shiftyjelly.pocketcasts.player.view.bookmark.BookmarkActivityContr
 import au.com.shiftyjelly.pocketcasts.player.view.bookmark.BookmarksContainerFragment
 import au.com.shiftyjelly.pocketcasts.player.view.dialog.MiniPlayerDialog
 import au.com.shiftyjelly.pocketcasts.player.view.video.VideoActivity
+import au.com.shiftyjelly.pocketcasts.playlists.PlaylistFragment
 import au.com.shiftyjelly.pocketcasts.playlists.PlaylistsFragment
-import au.com.shiftyjelly.pocketcasts.playlists.smart.PlaylistFragment
 import au.com.shiftyjelly.pocketcasts.podcasts.view.ProfileEpisodeListFragment
 import au.com.shiftyjelly.pocketcasts.podcasts.view.episode.EpisodeContainerFragment
 import au.com.shiftyjelly.pocketcasts.podcasts.view.folders.SuggestedFoldersFragment
@@ -131,6 +136,7 @@ import au.com.shiftyjelly.pocketcasts.podcasts.view.podcast.PodcastFragment
 import au.com.shiftyjelly.pocketcasts.podcasts.view.podcasts.PodcastsFragment
 import au.com.shiftyjelly.pocketcasts.podcasts.view.share.ShareListIncomingFragment
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.preferences.model.AppReviewReason
 import au.com.shiftyjelly.pocketcasts.profile.ProfileFragment
 import au.com.shiftyjelly.pocketcasts.profile.SubCancelledFragment
 import au.com.shiftyjelly.pocketcasts.profile.TrialFinishedFragment
@@ -138,6 +144,7 @@ import au.com.shiftyjelly.pocketcasts.profile.cloud.CloudFileBottomSheetFragment
 import au.com.shiftyjelly.pocketcasts.profile.cloud.CloudFilesFragment
 import au.com.shiftyjelly.pocketcasts.profile.sonos.SonosAppLinkActivity
 import au.com.shiftyjelly.pocketcasts.referrals.ReferralsGuestPassFragment
+import au.com.shiftyjelly.pocketcasts.repositories.appreview.AppReviewManager
 import au.com.shiftyjelly.pocketcasts.repositories.bumpstats.BumpStatsTask
 import au.com.shiftyjelly.pocketcasts.repositories.di.ApplicationScope
 import au.com.shiftyjelly.pocketcasts.repositories.di.NotificationPermissionChecker
@@ -147,6 +154,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.opml.OpmlImportTask
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackState
 import au.com.shiftyjelly.pocketcasts.repositories.playback.UpNextSource
+import au.com.shiftyjelly.pocketcasts.repositories.playlist.Playlist
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.SmartPlaylistManager
@@ -202,6 +210,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -210,6 +219,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -297,6 +307,9 @@ class MainActivity :
     @Inject
     lateinit var paymentClient: PaymentClient
 
+    @Inject
+    lateinit var appReviewManager: AppReviewManager
+
     private val viewModel: MainActivityViewModel by viewModels()
     private val disposables = CompositeDisposable()
     private var videoPlayerShown: Boolean = false
@@ -333,6 +346,11 @@ class MainActivity :
     private val onboardingLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(OnboardingActivityContract()) { result ->
         when (result) {
             is OnboardingFinish.Done -> {
+                if (!settings.hasCompletedOnboarding()) {
+                    val podcastCount = runBlocking(Dispatchers.Default) { podcastManager.countSubscribed() }
+                    val landingTab = if (podcastCount == 0) VR.id.navigation_discover else VR.id.navigation_podcasts
+                    openTab(landingTab)
+                }
                 settings.setHasDoneInitialOnboarding()
             }
 
@@ -343,7 +361,7 @@ class MainActivity :
 
             is OnboardingFinish.DoneShowPlusPromotion -> {
                 settings.setHasDoneInitialOnboarding()
-                OnboardingLauncher.openOnboardingFlow(this, OnboardingFlow.Upsell(OnboardingUpgradeSource.LOGIN_PLUS_PROMOTION))
+                OnboardingLauncher.openOnboardingFlow(this, OnboardingFlow.Upsell(OnboardingUpgradeSource.FINISHED_ONBOARDING))
             }
 
             is OnboardingFinish.DoneShowWelcomeInReferralFlow -> {
@@ -360,6 +378,24 @@ class MainActivity :
         BookmarkActivityContract(),
     ) { result ->
         showViewBookmarksSnackbar(result)
+    }
+
+    private val endOfYearActivityLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(StoriesActivity.StoriesActivityContract()) { result ->
+        when (result) {
+            is StoriesActivity.StoriesActivityContract.Result.Failure -> {
+                result.source?.let { source ->
+                    val view = snackBarView()
+                    val action = View.OnClickListener {
+                        showStories(source = source)
+                    }
+                    Snackbar.make(view, getString(LR.string.end_of_year_failed_to_load_message), Snackbar.LENGTH_LONG)
+                        .setAction(LR.string.retry, action)
+                        .show()
+                }
+            }
+
+            else -> Unit
+        }
     }
 
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -456,7 +492,7 @@ class MainActivity :
                     if (settings.getEndOfYearShowModal()) {
                         setupEndOfYearLaunchBottomSheet()
                     }
-                    if (settings.getEndOfYearShowBadge2023()) {
+                    if (settings.getEndOfYearShowBadge2025()) {
                         binding.bottomNavigation.getOrCreateBadge(VR.id.navigation_profile)
                     }
                 }
@@ -568,37 +604,36 @@ class MainActivity :
         ThemeSettingObserver(this, theme, settings.themeReconfigurationEvents).observeThemeChanges()
 
         encourageAccountCreation()
+        setupAppReviewPrompt()
     }
 
     private fun resetEoYBadgeIfNeeded() {
         if (binding.bottomNavigation.getBadge(VR.id.navigation_profile) != null &&
-            settings.getEndOfYearShowBadge2023()
+            settings.getEndOfYearShowBadge2025()
         ) {
             binding.bottomNavigation.removeBadge(VR.id.navigation_profile)
-            settings.setEndOfYearShowBadge2023(false)
+            settings.setEndOfYearShowBadge2025(false)
         }
     }
 
     private fun encourageAccountCreation() {
-        if (FeatureFlag.isEnabled(Feature.ENCOURAGE_ACCOUNT_CREATION)) {
-            lifecycleScope.launch {
-                repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    val encourageAccountCreation = settings.showFreeAccountEncouragement.value
-                    if (!encourageAccountCreation) {
-                        return@repeatOnLifecycle
-                    }
-                    settings.showFreeAccountEncouragement.set(false, updateModifiedAt = true)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                val encourageAccountCreation = settings.showFreeAccountEncouragement.value
+                if (!encourageAccountCreation) {
+                    return@repeatOnLifecycle
+                }
+                settings.showFreeAccountEncouragement.set(false, updateModifiedAt = true)
 
-                    val isSignedIn = viewModel.signInState.asFlow().first().isSignedIn
-                    if (isSignedIn) {
-                        return@repeatOnLifecycle
-                    }
+                val isSignedIn = viewModel.signInState.asFlow().first().isSignedIn
+                if (isSignedIn) {
+                    return@repeatOnLifecycle
+                }
 
-                    if (Util.isTablet(this@MainActivity)) {
-                        AccountBenefitsFragment().show(supportFragmentManager, "account_benefits_fragment")
-                    } else {
-                        openOnboardingFlow(OnboardingFlow.AccountEncouragement)
-                    }
+                if (Util.isTablet(this@MainActivity)) {
+                    AccountBenefitsFragment().show(supportFragmentManager, "account_benefits_fragment")
+                } else {
+                    openOnboardingFlow(OnboardingFlow.AccountEncouragement)
                 }
             }
         }
@@ -609,7 +644,11 @@ class MainActivity :
     }
 
     override fun openOnboardingFlow(onboardingFlow: OnboardingFlow) {
-        onboardingLauncher.launch(launchIntent(onboardingFlow))
+        onboardingLauncher.launch(
+            launchIntent(onboardingFlow),
+            ActivityOptionsCompat
+                .makeCustomAnimation(this, R.anim.onboarding_enter, R.anim.onboarding_disappear),
+        )
     }
 
     override fun onStart() {
@@ -717,6 +756,7 @@ class MainActivity :
         mediaRouter?.removeCallback(mediaRouterCallback)
     }
 
+    @SuppressLint("GestureBackNavigation")
     @Deprecated("Deprecated in Java")
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
@@ -847,15 +887,15 @@ class MainActivity :
                             parent = viewGroup,
                             shouldShow = shouldShow,
                             onClick = {
+                                analyticsTracker.trackEndOfYearModalTapped(year = EndOfYearManager.YEAR_TO_SYNC.value)
                                 showStoriesOrAccount(StoriesSource.MODAL.value)
                             },
                             onExpand = {
-                                analyticsTracker.track(
-                                    AnalyticsEvent.END_OF_YEAR_MODAL_SHOWN,
-                                    mapOf("year" to EndOfYearManager.YEAR_TO_SYNC.value),
-                                )
+                                analyticsTracker.trackEndOfYearModalShown(year = EndOfYearManager.YEAR_TO_SYNC.value)
                                 settings.setEndOfYearShowModal(false)
-                                viewModel.updateStoriesModalShowState(false)
+                            },
+                            onCollapse = {
+                                analyticsTracker.trackEndOfYearModalDismissed(year = EndOfYearManager.YEAR_TO_SYNC.value)
                             },
                         )
                     }
@@ -881,7 +921,9 @@ class MainActivity :
     }
 
     private fun showStories(source: StoriesSource) {
-        StoriesActivity.open(this, source)
+        endOfYearActivityLauncher.launch(
+            StoriesActivity.intent(activity = this, source = source),
+        )
     }
 
     @Suppress("DEPRECATION")
@@ -1005,6 +1047,7 @@ class MainActivity :
                 viewModel.navigationState.collect { navigationState ->
                     when (navigationState) {
                         is NavigationState.BookmarksForCurrentlyPlaying -> showPlayerBookmarks()
+
                         is NavigationState.BookmarksForPodcastEpisode -> {
                             // Once episode container fragment is shown, bookmarks tab is shown from inside it based on the new source
                             openEpisodeDialog(
@@ -1187,7 +1230,7 @@ class MainActivity :
         binding.frameBottomSheet.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
     }
 
-    override fun bottomSheetClosePressed(fragment: Fragment) {
+    override fun closeBottomSheet() {
         frameBottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
         binding.frameBottomSheet.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
@@ -1282,6 +1325,10 @@ class MainActivity :
 
     override fun closePodcastsToRoot() {
         navigator.reset(tab = VR.id.navigation_podcasts, resetRootFragment = true)
+    }
+
+    override fun closeFiltersToRoot() {
+        navigator.reset(tab = VR.id.navigation_filters, resetRootFragment = true)
     }
 
     override fun setSupportActionBar(toolbar: Toolbar?) {
@@ -1440,9 +1487,10 @@ class MainActivity :
 
                 is ShowPlaylistDeepLink -> {
                     if (FeatureFlag.isEnabled(Feature.PLAYLISTS_REBRANDING, immutable = true)) {
+                        val type = Playlist.Type.fromValue(deepLink.playlistType) ?: return
                         closePlayer()
                         openTab(VR.id.navigation_filters)
-                        addFragment(PlaylistFragment.newInstance(deepLink.playlistUuid))
+                        addFragment(PlaylistFragment.newInstance(deepLink.playlistUuid, type))
                     } else {
                         launch(Dispatchers.Default) {
                             smartPlaylistManager.findByUuid(deepLink.playlistUuid)?.let {
@@ -1808,10 +1856,15 @@ class MainActivity :
     private fun trackTabOpened(tab: Int, isInitial: Boolean = false) {
         val event: AnalyticsEvent? = when (tab) {
             VR.id.navigation_podcasts -> AnalyticsEvent.PODCASTS_TAB_OPENED
+
             VR.id.navigation_upnext -> AnalyticsEvent.UP_NEXT_TAB_OPENED
+
             VR.id.navigation_filters -> AnalyticsEvent.FILTERS_TAB_OPENED
+
             VR.id.navigation_discover -> AnalyticsEvent.DISCOVER_TAB_OPENED
+
             VR.id.navigation_profile -> AnalyticsEvent.PROFILE_TAB_OPENED
+
             else -> {
                 Timber.e("Can't open invalid tab")
                 null
@@ -1854,9 +1907,6 @@ class MainActivity :
 
         Snackbar.make(view, snackbarMessage, Snackbar.LENGTH_LONG)
             .setAction(LR.string.settings_view, action)
-            .setActionTextColor(result.tintColor)
-            .setBackgroundTint(ThemeColor.primaryUi01(Theme.ThemeType.DARK))
-            .setTextColor(ThemeColor.primaryText01(Theme.ThemeType.DARK))
             .show()
     }
 
@@ -1865,5 +1915,66 @@ class MainActivity :
         openTab(VR.id.navigation_profile)
         addFragment(SettingsFragment())
         addFragment(ExportSettingsFragment())
+    }
+
+    private fun setupAppReviewPrompt() {
+        lifecycleScope.launch {
+            appReviewManager.showPromptSignal
+                .flowWithLifecycle(lifecycle, Lifecycle.State.RESUMED)
+                .onStart { delay(3.seconds) } // Do not blast user with a review immediately on start
+                .collect { signal ->
+                    if (canDisplayAppRatingsPrompt(signal.reason)) {
+                        AppReviewDialogFragment
+                            .newInstance(signal.reason, signal.reviewInfo)
+                            .show(supportFragmentManager, "app_review_prompt")
+                        signal.consume()
+                    } else {
+                        signal.ignore()
+                    }
+                }
+        }
+    }
+
+    private fun canDisplayAppRatingsPrompt(reason: AppReviewReason): Boolean {
+        return reason == AppReviewReason.DevelopmentTrigger || (
+            FeatureFlag.isEnabled(Feature.IMPROVE_APP_RATINGS) &&
+                !binding.root.wasTouchedInLast(2.seconds) &&
+                frameBottomSheetBehavior.state == BottomSheetBehavior.STATE_COLLAPSED &&
+                !viewModel.shouldShowStoriesModal.value &&
+                !binding.playerBottomSheet.isPlayerOpen &&
+                isAtRootOfStack() &&
+                isNoDialogShown() &&
+                areChildrenAtRootOfStack() &&
+                isNoChildDialogShown()
+            )
+    }
+
+    private fun isAtRootOfStack(): Boolean {
+        return navigator.isAtRootOfStack() && supportFragmentManager.isAtRootOfStack()
+    }
+
+    private fun isNoDialogShown(): Boolean {
+        return !navigator.isShowingModal() && supportFragmentManager.isNoDialogShown()
+    }
+
+    private fun areChildrenAtRootOfStack(): Boolean {
+        return childrenWithBackStack.all { it.getBackstackCount() == 0 } &&
+            supportFragmentManager.fragments
+                .filter { fragment -> fragment.host != null }
+                .all { fragment -> fragment.childFragmentManager.isAtRootOfStack() }
+    }
+
+    private fun isNoChildDialogShown(): Boolean {
+        return supportFragmentManager.fragments
+            .filter { fragment -> fragment.host != null }
+            .all { fragment -> fragment.childFragmentManager.isNoDialogShown() }
+    }
+
+    private fun FragmentManager.isAtRootOfStack(): Boolean {
+        return backStackEntryCount == 0
+    }
+
+    private fun FragmentManager.isNoDialogShown(): Boolean {
+        return fragments.none { it is DialogFragment }
     }
 }

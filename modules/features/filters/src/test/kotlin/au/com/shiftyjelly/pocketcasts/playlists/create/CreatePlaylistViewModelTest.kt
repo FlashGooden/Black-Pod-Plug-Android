@@ -1,9 +1,12 @@
 package au.com.shiftyjelly.pocketcasts.playlists.create
 
+import androidx.compose.foundation.text.input.setTextAndSelectAll
 import androidx.compose.ui.text.TextRange
 import app.cash.turbine.test
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
+import au.com.shiftyjelly.pocketcasts.compose.text.SearchFieldState
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
+import au.com.shiftyjelly.pocketcasts.models.type.PlaylistEpisodeSortType
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.DownloadStatusRule
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.EpisodeDurationRule
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.EpisodeStatusRule
@@ -13,12 +16,13 @@ import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.ReleaseDateRule
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.StarredRule
 import au.com.shiftyjelly.pocketcasts.playlists.CreatePlaylistViewModel
 import au.com.shiftyjelly.pocketcasts.playlists.CreatePlaylistViewModel.UiState
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.AppliedRules
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.RuleType
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.RulesBuilder
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.SmartRulesEditor
+import au.com.shiftyjelly.pocketcasts.playlists.smart.AppliedRules
+import au.com.shiftyjelly.pocketcasts.playlists.smart.RuleType
+import au.com.shiftyjelly.pocketcasts.playlists.smart.RulesBuilder
+import au.com.shiftyjelly.pocketcasts.playlists.smart.SmartRulesEditor
 import au.com.shiftyjelly.pocketcasts.preferences.UserSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.ArtworkConfiguration
+import au.com.shiftyjelly.pocketcasts.repositories.playlist.Playlist.Type
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.SmartPlaylistDraft
 import au.com.shiftyjelly.pocketcasts.sharedtest.MainCoroutineRule
 import kotlin.time.Duration.Companion.minutes
@@ -31,6 +35,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
@@ -45,15 +50,23 @@ class CreatePlaylistViewModelTest {
     private val viewModel = CreatePlaylistViewModel(
         playlistManager = playlistManager,
         rulesEditorFactory = object : SmartRulesEditor.Factory {
-            override fun create(scope: CoroutineScope, initialBuilder: RulesBuilder, initialAppliedRules: AppliedRules): SmartRulesEditor {
+            override fun create(
+                scope: CoroutineScope,
+                initialBuilder: RulesBuilder,
+                initialAppliedRules: AppliedRules,
+                sortType: PlaylistEpisodeSortType,
+                podcastSearchState: SearchFieldState,
+            ): SmartRulesEditor {
                 return SmartRulesEditor(
                     playlistManager = playlistManager,
                     podcastManager = mock {
-                        on { findSubscribedFlow() } doReturn followedPodcasts
+                        on { findSubscribedFlow(anyOrNull()) } doReturn followedPodcasts
                     },
                     scope = scope,
                     initialBuilder = initialBuilder,
                     initialAppliedRules = initialAppliedRules,
+                    sortType = sortType,
+                    podcastSearchState = podcastSearchState,
                 )
             }
         },
@@ -110,7 +123,7 @@ class CreatePlaylistViewModelTest {
 
             viewModel.applyRule(RuleType.Podcasts)
             state = awaitItem()
-            assertEquals(PodcastsRule.Selected(listOf("id-1", "id-2")), state.appliedRules.podcasts)
+            assertEquals(PodcastsRule.Selected(setOf("id-1", "id-2")), state.appliedRules.podcasts)
 
             followedPodcasts.value = List(4) { index -> Podcast(uuid = "id-$index") }
             skipItems(1)
@@ -373,7 +386,7 @@ class CreatePlaylistViewModelTest {
                 skipItems(1)
             }
 
-            assertFalse(viewModel.createdSmartPlaylistUuid.isCompleted)
+            assertFalse(viewModel.createdPlaylist.isCompleted)
 
             viewModel.createSmartPlaylist()
             assertEquals(
@@ -381,22 +394,49 @@ class CreatePlaylistViewModelTest {
                     title = "Playlist name",
                     rules = viewModel.uiState.value.appliedRules.toSmartRules()!!,
                 ),
-                playlistManager.upsertSmartPlaylistTurbine.awaitItem(),
+                playlistManager.createSmartPlaylistTurbine.awaitItem(),
             )
-            viewModel.createdSmartPlaylistUuid.await()
+            assertEquals(
+                Type.Smart,
+                viewModel.createdPlaylist.await().type,
+            )
         }
     }
 
     @Test
-    fun `do not create more than a single smart playlist`() = runTest {
+    fun `crate manual playlist`() = runTest {
+        viewModel.playlistNameState.setTextAndSelectAll("My playlist")
+
+        viewModel.uiState.test {
+            skipItems(1)
+
+            assertFalse(viewModel.createdPlaylist.isCompleted)
+
+            viewModel.createManualPlaylist()
+
+            assertEquals(
+                "My playlist",
+                playlistManager.createManualPlaylistTurbine.awaitItem(),
+            )
+            assertEquals(
+                Type.Manual,
+                viewModel.createdPlaylist.await().type,
+            )
+        }
+    }
+
+    @Test
+    fun `do not create more than a single playlist`() = runTest {
         viewModel.uiState.test {
             skipItems(1)
 
             viewModel.createSmartPlaylist()
-            playlistManager.upsertSmartPlaylistTurbine.skipItems(1)
+            playlistManager.createSmartPlaylistTurbine.skipItems(1)
 
             viewModel.createSmartPlaylist()
-            playlistManager.upsertSmartPlaylistTurbine.expectNoEvents()
+            viewModel.createManualPlaylist()
+            playlistManager.createSmartPlaylistTurbine.expectNoEvents()
+            playlistManager.createManualPlaylistTurbine.expectNoEvents()
         }
     }
 

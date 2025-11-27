@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.content.PermissionChecker
 import androidx.fragment.app.viewModels
 import androidx.fragment.compose.content
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,7 +76,6 @@ internal class EnableNotificationsPromptFragment : BaseDialogFragment() {
                             .fillMaxSize()
                             .padding(22.dp),
                         onCtaClick = viewModel::handleCtaClick,
-                        onDismissClick = ::finalizeAndDismiss,
                         showNewsletterSection = state.showNewsletterOptIn,
                         isNewsletterSelected = state.subscribedToNewsletter,
                         isNotificationSelected = state.notificationsEnabled,
@@ -112,11 +112,17 @@ internal class EnableNotificationsPromptFragment : BaseDialogFragment() {
 
     private fun requestPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-                permissionRequester.launch(Manifest.permission.POST_NOTIFICATIONS)
-                viewModel.reportNotificationsOptInShown()
-            } else {
-                notificationHelper.openNotificationSettings(requireActivity())
+            when {
+                PermissionChecker.checkSelfPermission(requireActivity(), Manifest.permission.POST_NOTIFICATIONS) == PermissionChecker.PERMISSION_GRANTED -> Unit
+
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    notificationHelper.openNotificationSettings(requireActivity())
+                }
+
+                else -> {
+                    permissionRequester.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    viewModel.reportNotificationsOptInShown()
+                }
             }
         }
     }

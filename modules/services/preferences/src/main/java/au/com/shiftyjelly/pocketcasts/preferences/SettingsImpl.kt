@@ -13,8 +13,8 @@ import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.models.to.PodcastGrouping
 import au.com.shiftyjelly.pocketcasts.models.to.RefreshState
 import au.com.shiftyjelly.pocketcasts.models.type.AutoDownloadLimitSetting
+import au.com.shiftyjelly.pocketcasts.models.type.Membership
 import au.com.shiftyjelly.pocketcasts.models.type.PodcastsSortType
-import au.com.shiftyjelly.pocketcasts.models.type.Subscription
 import au.com.shiftyjelly.pocketcasts.models.type.TrimMode
 import au.com.shiftyjelly.pocketcasts.preferences.Settings.Companion.DEFAULT_MAX_AUTO_ADD_LIMIT
 import au.com.shiftyjelly.pocketcasts.preferences.Settings.Companion.GLOBAL_AUTO_DOWNLOAD_NONE
@@ -24,6 +24,7 @@ import au.com.shiftyjelly.pocketcasts.preferences.Settings.MediaNotificationCont
 import au.com.shiftyjelly.pocketcasts.preferences.di.PrivateSharedPreferences
 import au.com.shiftyjelly.pocketcasts.preferences.di.PublicSharedPreferences
 import au.com.shiftyjelly.pocketcasts.preferences.model.AppIconSetting
+import au.com.shiftyjelly.pocketcasts.preferences.model.AppReviewReason
 import au.com.shiftyjelly.pocketcasts.preferences.model.ArtworkConfiguration
 import au.com.shiftyjelly.pocketcasts.preferences.model.AutoAddUpNextLimitBehaviour
 import au.com.shiftyjelly.pocketcasts.preferences.model.AutoPlaySource
@@ -58,6 +59,7 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.PBEParameterSpec
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.math.max
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
@@ -70,6 +72,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import timber.log.Timber
 
+@Singleton
 class SettingsImpl @Inject constructor(
     @PublicSharedPreferences private val sharedPreferences: SharedPreferences,
     @PrivateSharedPreferences private val privatePreferences: SharedPreferences,
@@ -81,13 +84,33 @@ class SettingsImpl @Inject constructor(
     companion object {
         private const val DEVICE_ID_KEY = "DeviceIdKey"
         private const val SHOWN_BATTERY_WARNING_KEY = "ShownBetteryWarningKey"
-        private const val END_OF_YEAR_SHOW_BADGE_2023_KEY = "EndOfYearShowBadge2023Key"
-        private const val END_OF_YEAR_SHOW_MODAL_2023_KEY = "EndOfYearModalShowModal2023Key"
+        private const val END_OF_YEAR_SHOW_BADGE_2025_KEY = "EndOfYearShowBadge2025Key"
+        private const val END_OF_YEAR_SHOW_MODAL_2025_KEY = "EndOfYearModalShowModal2025Key"
         private const val DONE_INITIAL_ONBOARDING_KEY = "CompletedOnboardingKey"
         private const val PROCESSED_SIGNOUT_KEY = "ProcessedSignout"
     }
 
     private var languageCode: String? = null
+
+    private val sessionIdsSetting = UserSetting.PrefListFromString(
+        sharedPrefKey = "app_session_ids",
+        defaultValue = emptyList(),
+        fromString = { value -> value },
+        toString = { value -> value },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val currentSessionId = UUID.randomUUID().toString()
+
+    init {
+        val newIds = buildList {
+            addAll(sessionIdsSetting.value.takeLast(9))
+            add(currentSessionId)
+        }
+        sessionIdsSetting.set(newIds, updateModifiedAt = false)
+    }
+
+    override val sessionIds get() = sessionIdsSetting.value
 
     override val selectPodcastSortTypeObservable = BehaviorRelay.create<PodcastsSortType>().apply { accept(getSelectPodcastsSortType()) }
     override val multiSelectItemsObservable = BehaviorRelay.create<List<String>>().apply { accept(getMultiSelectItems()) }
@@ -958,6 +981,7 @@ class SettingsImpl @Inject constructor(
         fromString = { actionIdsString ->
             when (actionIdsString) {
                 "" -> NewEpisodeNotificationAction.DefaultValues
+
                 else -> actionIdsString.splitIgnoreEmpty(",").mapNotNull { actionIdString ->
                     NewEpisodeNotificationAction.entries.find { action ->
                         action.id.toString() == actionIdString
@@ -977,6 +1001,7 @@ class SettingsImpl @Inject constructor(
         sharedPrefKey = "autoUpNextEmpty",
         defaultValue = when (Util.getAppPlatform(context)) {
             AppPlatform.Automotive -> true
+
             AppPlatform.Phone,
             AppPlatform.WearOs,
             -> false
@@ -1044,10 +1069,6 @@ class SettingsImpl @Inject constructor(
         return getRemoteConfigLong(FirebaseConfig.REFRESH_PODCASTS_BATCH_SIZE)
     }
 
-    override fun getExoPlayerCacheSizeInMB(): Long {
-        return firebaseRemoteConfig.getLong(FirebaseConfig.EXOPLAYER_CACHE_SIZE_IN_MB)
-    }
-
     override fun getExoPlayerCacheEntirePlayingEpisodeSizeInMB(): Long {
         return firebaseRemoteConfig.getLong(FirebaseConfig.EXOPLAYER_CACHE_ENTIRE_PLAYING_EPISODE_SIZE_IN_MB)
     }
@@ -1075,24 +1096,26 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
-    private val subscriptionAdapter = moshi.adapter(Subscription::class.java)
+    private val membershipAdapter = moshi.adapter(Membership::class.java)
 
-    override val cachedSubscription = UserSetting.PrefFromString<Subscription?>(
-        sharedPrefKey = "user_subscription",
-        defaultValue = null,
+    override val cachedMembership = UserSetting.PrefFromString(
+        sharedPrefKey = "user_membership",
+        defaultValue = Membership.Empty,
         sharedPrefs = privatePreferences,
         fromString = { value ->
             value
                 .takeIf(String::isNotEmpty)
                 ?.let(::decrypt)
-                ?.let { decryptedValue -> runCatching { subscriptionAdapter.fromJson(decryptedValue) }.getOrNull() }
+                ?.let { decryptedValue -> runCatching { membershipAdapter.fromJson(decryptedValue) } }
+                ?.getOrNull()
+                ?: Membership.Empty
         },
-        toString = { value ->
-            value
-                ?.let(subscriptionAdapter::toJson)
-                ?.let(::encrypt)
-                .orEmpty()
-        },
+        toString = { value -> encrypt(membershipAdapter.toJson(value)) },
+    )
+
+    override val cachedSubscription = DelegatedReadSetting(
+        delegate = cachedMembership,
+        mapper = { membership -> membership.subscription },
     )
 
     override val headphoneControlsNextAction = HeadphoneActionUserSetting(
@@ -1303,14 +1326,6 @@ class SettingsImpl @Inject constructor(
         return deviceId
     }
 
-    override fun setHomeGridNeedsRefresh(value: Boolean) {
-        setBoolean("home_grid_needs_refresh", value)
-    }
-
-    override fun getHomeGridNeedsRefresh(): Boolean {
-        return getBoolean("home_grid_needs_refresh", false)
-    }
-
     override fun setTimesToShowBatteryWarning(value: Int) {
         setInt(SHOWN_BATTERY_WARNING_KEY, max(0, value))
     }
@@ -1320,12 +1335,6 @@ class SettingsImpl @Inject constructor(
     override val collectAnalytics = UserSetting.BoolPref(
         sharedPrefKey = "SendUsageStatsKey",
         defaultValue = BuildConfig.DATA_COLLECTION_DEFAULT_VALUE ?: true,
-        sharedPrefs = sharedPreferences,
-    )
-
-    override val collectAnalyticsThirdParty = UserSetting.BoolPref(
-        sharedPrefKey = "SendUsageStatsThirdPartyKey",
-        defaultValue = false, // Ask for consent before sending third party analytics
         sharedPrefs = sharedPreferences,
     )
 
@@ -1341,17 +1350,17 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
-    override fun setEndOfYearShowBadge2023(value: Boolean) {
-        setBoolean(END_OF_YEAR_SHOW_BADGE_2023_KEY, value)
+    override fun setEndOfYearShowBadge2025(value: Boolean) {
+        setBoolean(END_OF_YEAR_SHOW_BADGE_2025_KEY, value)
     }
 
-    override fun getEndOfYearShowBadge2023(): Boolean = getBoolean(END_OF_YEAR_SHOW_BADGE_2023_KEY, true)
+    override fun getEndOfYearShowBadge2025(): Boolean = getBoolean(END_OF_YEAR_SHOW_BADGE_2025_KEY, true)
 
     override fun setEndOfYearShowModal(value: Boolean) {
-        setBoolean(END_OF_YEAR_SHOW_MODAL_2023_KEY, value)
+        setBoolean(END_OF_YEAR_SHOW_MODAL_2025_KEY, value)
     }
 
-    override fun getEndOfYearShowModal(): Boolean = getBoolean(END_OF_YEAR_SHOW_MODAL_2023_KEY, true)
+    override fun getEndOfYearShowModal(): Boolean = getBoolean(END_OF_YEAR_SHOW_MODAL_2025_KEY, true)
 
     override fun hasCompletedOnboarding() = getBoolean(DONE_INITIAL_ONBOARDING_KEY, false)
 
@@ -1559,9 +1568,15 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
-    override val showEmptyFiltersListTooltip: UserSetting<Boolean> = UserSetting.BoolPref(
+    override val showPremadePlaylistsTooltip: UserSetting<Boolean> = UserSetting.BoolPref(
         sharedPrefKey = "show_empty_filters_list_tooltip",
         defaultValue = true,
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val showRearrangePlaylistsTooltip: UserSetting<Boolean> = UserSetting.BoolPref(
+        sharedPrefKey = "show_rearrange_playlists_tooltip",
+        defaultValue = false,
         sharedPrefs = sharedPreferences,
     )
 
@@ -1588,12 +1603,6 @@ class SettingsImpl @Inject constructor(
     override val suggestedFoldersFollowedHash = UserSetting.StringPref(
         sharedPrefKey = "suggested_folders_followed_hash",
         defaultValue = "",
-        sharedPrefs = sharedPreferences,
-    )
-
-    override val isTrackingConsentRequired = UserSetting.BoolPref(
-        sharedPrefKey = "tracking_consent_required",
-        defaultValue = true,
         sharedPrefs = sharedPreferences,
     )
 
@@ -1626,4 +1635,143 @@ class SettingsImpl @Inject constructor(
         defaultValue = true,
         sharedPrefs = sharedPreferences,
     )
+
+    override val saveUpNextAsPlaylist = UserSetting.BoolPref(
+        sharedPrefKey = "save_up_next_as_playlist",
+        defaultValue = true,
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewEpisodeCompletedTimestamps = UserSetting.PrefListFromString(
+        sharedPrefKey = "app_review_episode_completed_timestamps",
+        defaultValue = emptyList(),
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewEpisodeStarredTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_episode_starred_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewPodcastRatedTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_podcast_rated_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewPlaylistCreatedTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_playlist_created_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewPlusUpgradedTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_plus_upgraded_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewFolderCreatedTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_folder_created_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewBookmarkCreatedTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_bookmark_created_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewThemeChangedTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_theme_changed_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewReferralSharedTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_referral_shared_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewPlaybackSharedTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_playback_shared_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewSubmittedReasons = UserSetting.PrefListFromString(
+        sharedPrefKey = "app_review_submitted_reasons",
+        defaultValue = emptyList(),
+        fromString = { value -> AppReviewReason.fromValue(value) ?: AppReviewReason.DevelopmentTrigger },
+        toString = { value -> value.analyticsValue },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewLastPromptTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_last_prompt_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewLastDeclineTimestamps = UserSetting.PrefListFromString(
+        sharedPrefKey = "app_review_last_decline_timestamps",
+        defaultValue = emptyList(),
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewCrashTimestamp = UserSetting.PrefFromString(
+        sharedPrefKey = "app_review_crash_timestamp",
+        defaultValue = null,
+        fromString = { value -> runCatching { Instant.parse(value) }.getOrNull() },
+        toString = { value -> value.toString() },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override val appReviewErrorSessionIds = UserSetting.PrefListFromString(
+        sharedPrefKey = "app_review_error_session_ids",
+        defaultValue = emptyList(),
+        fromString = { value -> value },
+        toString = { value -> value },
+        sharedPrefs = sharedPreferences,
+    )
+
+    override fun recordErrorSession() {
+        val recentIds = appReviewErrorSessionIds.value
+        if (currentSessionId in recentIds) {
+            return
+        }
+
+        val newIds = buildList {
+            addAll(appReviewErrorSessionIds.value.takeLast(1))
+            add(currentSessionId)
+        }
+        appReviewErrorSessionIds.set(newIds, updateModifiedAt = false)
+    }
 }

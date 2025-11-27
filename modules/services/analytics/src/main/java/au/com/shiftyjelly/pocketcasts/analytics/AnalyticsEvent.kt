@@ -53,7 +53,9 @@ enum class AnalyticsEvent(val key: String) {
     PLUS_PROMOTION_SUBSCRIPTION_FREQUENCY_CHANGED("plus_promotion_subscription_frequency_changed"),
     PLUS_PROMOTION_PRIVACY_POLICY_TAPPED("plus_promotion_privacy_policy_tapped"),
     PLUS_PROMOTION_TERMS_AND_CONDITIONS_TAPPED("plus_promotion_terms_and_conditions_tapped"),
+    PLUS_PROMOTION_DETAILS_TAPPED("plus_promotion_details_tapped"),
     UPGRADE_BANNER_DISMISSED("upgrade_banner_dismissed"),
+    PLUS_PROMOTION_BANNER_BUTTON_TAPPED("plus_promotion_banner_button_tapped"),
 
     /* Pull to refresh */
     PULLED_TO_REFRESH("pulled_to_refresh"),
@@ -66,6 +68,8 @@ enum class AnalyticsEvent(val key: String) {
     /* Sign in */
     SIGNIN_SHOWN("signin_shown"),
     SIGNIN_DISMISSED("signin_dismissed"),
+    SIGNIN_BUTTON_TAPPED("signin_button_tapped"),
+    SIGNIN_FORGOT_PASSWORD_TAPPED("signin_forgot_password_tapped"),
 
     /* Create Account */
     CREATE_ACCOUNT_SHOWN("create_account_shown"),
@@ -282,8 +286,6 @@ enum class AnalyticsEvent(val key: String) {
     PRIVACY_SHOWN("privacy_shown"),
     ANALYTICS_OPT_IN("analytics_opt_in"),
     ANALYTICS_OPT_OUT("analytics_opt_out"),
-    ANALYTICS_THIRD_PARTY_OPT_IN("analytics_third_party_opt_in"),
-    ANALYTICS_THIRD_PARTY_OPT_OUT("analytics_third_party_opt_out"),
     CRASH_REPORTS_TOGGLED("crash_reports_toggled"),
     SETTINGS_SHOW_PRIVACY_POLICY("settings_show_privacy_policy"),
 
@@ -296,6 +298,8 @@ enum class AnalyticsEvent(val key: String) {
     FILTER_CREATE_AS_MANUAL_PLAYLIST_TAPPED("filter_create_as_manual_playlist_tapped"),
     FILTER_CREATE_AS_SMART_PLAYLIST_TAPPED("filter_create_as_smart_playlist_tapped"),
     FILTER_CREATED("filter_created"),
+    FILTER_DELETE_TRIGGERED("filter_delete_triggered"),
+    FILTER_DELETE_DISMISSED("filter_delete_dismissed"),
     FILTER_DELETED("filter_deleted"),
     FILTER_EDIT_DISMISSED("filter_edit_dismissed"),
     FILTER_LIST_REORDERED("filter_list_reordered"),
@@ -314,13 +318,39 @@ enum class AnalyticsEvent(val key: String) {
     FILTER_OPTIONS_MODAL_OPTION_TAPPED("filter_options_modal_option_tapped"),
     FILTER_TOOLTIP_SHOWN("filter_tooltip_shown"),
     FILTER_TOOLTIP_CLOSED("filter_tooltip_closed"),
+    FILTER_ADD_EPISODES_TAPPED("filter_add_episodes_tapped"),
+    FILTER_ADD_EPISODES_SHOWN("filter_add_episodes_shown"),
+    FILTER_ADD_EPISODES_FOLDER_TAPPED("filter_add_episodes_folder_tapped"),
+    FILTER_ADD_EPISODES_PODCAST_TAPPED("filter_add_episodes_podcast_tapped"),
+    FILTER_ADD_EPISODES_EPISODE_TAPPED("filter_add_episodes_episode_tapped"),
     FILTER_EDIT_RULES_TAPPED("filter_edit_rules_tapped"),
     FILTER_PLAY_ALL_TAPPED("filter_play_all_tapped"),
+    FILTER_PLAY_ALL_REPLACE_AND_PLAY_TAPPED("filter_play_all_replace_and_play_tapped"),
+    FILTER_PLAY_ALL_DISMISSED("filter_play_all_dismissed"),
+    FILTER_OPTIONS_BUTTON_TAPPED("filter_options_button_tapped"),
     FILTER_SELECT_EPISODES_TAPPED("filter_select_episodes_tapped"),
     FILTER_SORT_BY_TAPPED("filter_sort_by_tapped"),
     FILTER_DOWNLOAD_ALL_TAPPED("filter_download_all_tapped"),
     FILTER_CHROME_CAST_TAPPED("filter_chrome_cast_tapped"),
+    FILTER_ARCHIVE_ALL_TAPPED("filter_archive_all_tapped"),
+    FILTER_UNARCHIVE_ALL_TAPPED("filter_unarchive_all_tapped"),
+    FILTER_REARRANGE_EPISODES_TAPPED("filter_rearrange_episodes_tapped"),
+    FILTER_SHOW_ARCHIVED_TAPPED("filter_show_archived_tapped"),
+    FILTER_HIDE_ARCHIVED_TAPPED("filter_hide_archived_tapped"),
     FILTER_OPTIONS_TAPPED("filter_options_tapped"),
+    FILTER_ADD_EPISODES_CTA_EMPTY_TAPPED("filter_add_episodes_cta_empty_tapped"),
+    FILTER_BROWSE_SHOWS_CTA_EMPTY_TAPPED("filter_browse_shows_cta_empty_tapped"),
+    FILTER_EDIT_RULES_CTA_EMPTY_TAPPED("filter_edit_rules_cta_empty_tapped"),
+    FILTER_SHOW_ARCHIVED_CTA_EMPTY_TAPPED("filter_show_archived_cta_empty_tapped"),
+    FILTER_NAME_UPDATED("filter_name_updated"),
+    FILTER_MANUAL_EPISODES_REARRANGED("filter_manual_episodes_rearranged"),
+    ADD_TO_PLAYLISTS_SHOWN("add_to_playlists_shown"),
+    ADD_TO_PLAYLISTS_EPISODE_ADD_TAPPED("add_to_playlists_episode_add_tapped"),
+    ADD_TO_PLAYLISTS_EPISODE_REMOVE_TAPPED("add_to_playlists_episode_remove_tapped"),
+    ADD_TO_PLAYLISTS_NEW_PLAYLIST_TAPPED("add_to_playlists_new_playlist_tapped"),
+    ADD_TO_PLAYLISTS_CREATE_NEW_PLAYLIST_TAPPED("add_to_playlists_create_new_playlist_tapped"),
+    EPISODE_ADDED_TO_LIST("episode_added_to_list"),
+    EPISODE_REMOVED_FROM_LIST("episode_removed_from_list"),
 
     /* Discover */
     DISCOVER_SHOWN("discover_shown"),
@@ -367,6 +397,7 @@ enum class AnalyticsEvent(val key: String) {
     UP_NEXT_DISMISSED("up_next_dismissed"),
     UP_NEXT_SHUFFLE_ENABLED("up_next_shuffle_enabled"),
     UP_NEXT_DISCOVER_BUTTON_TAPPED("up_next_discover_button_tapped"),
+    UP_NEXT_SORT("up_next_sort"),
 
     /* Player */
     PLAYER_SHOWN("player_shown"),
@@ -376,6 +407,7 @@ enum class AnalyticsEvent(val key: String) {
     PLAYER_CHAPTER_SELECTED("player_chapter_selected"),
     PLAYER_PREVIOUS_CHAPTER_TAPPED("player_previous_chapter_tapped"),
     PLAYER_NEXT_CHAPTER_TAPPED("player_next_chapter_tapped"),
+    PLAYER_EPISODE_COMPLETED("player_episode_completed"),
 
     /* Player - Sleep Timer */
     PLAYER_SLEEP_TIMER_ENABLED("player_sleep_timer_enabled"),
@@ -451,6 +483,10 @@ enum class AnalyticsEvent(val key: String) {
     EPISODE_DETAIL_TRANSCRIPT_CARD_SHOWN("episode_detail_transcript_card_shown"),
     EPISODE_DETAIL_TRANSCRIPT_CARD_TAPPED("episode_detail_transcript_card_tapped"),
 
+    /* Onboarding intro */
+    ONBOARDING_INTRO_CAROUSEL_SHOWN("onboarding_carousel_shown"),
+    ONBOARDING_GET_STARTED("onboarding_get_started"),
+
     /* Recommendations */
     RECOMMENDATIONS_SHOWN("recommendations_shown"),
     RECOMMENDATIONS_DISMISSED("recommendations_dismissed"),
@@ -458,6 +494,13 @@ enum class AnalyticsEvent(val key: String) {
     RECOMMENDATIONS_IMPORT_TAPPED("recommendations_import_tapped"),
     RECOMMENDATIONS_MORE_TAPPED("recommendations_more_tapped"),
     RECOMMENDATIONS_CONTINUE_TAPPED("recommendations_continue_tapped"),
+
+    /* Interests */
+    INTERESTS_SHOWN("onboarding_interests_shown"),
+    INTERESTS_NOT_NOW_TAPPED("onboarding_interests_not_now_tapped"),
+    INTERESTS_CATEGORY_SELECTED("onboarding_interests_category_selected"),
+    INTERESTS_SHOW_MORE_TAPPED("onboarding_interests_show_more_tapped"),
+    INTERESTS_CONTINUE_TAPPED("onboarding_interests_continue_tapped"),
 
     /* Podcast List Share */
     SHARE_PODCASTS_SHOWN("share_podcasts_shown"),
@@ -472,6 +515,8 @@ enum class AnalyticsEvent(val key: String) {
 
     /* End of Year */
     END_OF_YEAR_MODAL_SHOWN("end_of_year_modal_shown"),
+    END_OF_YEAR_MODAL_DISMISSED("end_of_year_modal_dismissed"),
+    END_OF_YEAR_MODAL_TAPPED("end_of_year_modal_tapped"),
     END_OF_YEAR_STORIES_SHOWN("end_of_year_stories_shown"),
     END_OF_YEAR_STORIES_DISMISSED("end_of_year_stories_dismissed"),
     END_OF_YEAR_STORIES_FAILED_TO_LOAD("end_of_year_stories_failed_to_load"),
@@ -479,8 +524,10 @@ enum class AnalyticsEvent(val key: String) {
     END_OF_YEAR_STORY_SHOWN("end_of_year_story_shown"),
     END_OF_YEAR_STORY_SHARE("end_of_year_story_share"),
     END_OF_YEAR_STORY_SHARED("end_of_year_story_shared"),
+    END_OF_YEAR_PROFILE_CARD_SHOWN("end_of_year_profile_card_shown"),
     END_OF_YEAR_PROFILE_CARD_TAPPED("end_of_year_profile_card_tapped"),
     END_OF_YEAR_UPSELL_SHOWN("end_of_year_upsell_shown"),
+    END_OF_YEAR_PLUS_CONTINUED("end_of_year_plus_continued"),
     END_OF_YEAR_LEARN_RATINGS_SHOWN("end_of_year_learn_ratings_shown"),
 
     /* Welcome */
@@ -657,6 +704,7 @@ enum class AnalyticsEvent(val key: String) {
     SETTINGS_STORAGE_SET_FOLDER_LOCATION("settings_storage_set_folder_location"),
     SETTINGS_STORAGE_BACKGROUND_REFRESH_TOGGLED("settings_storage_background_refresh_toggled"),
     SETTINGS_STORAGE_WARN_BEFORE_USING_DATA_TOGGLED("settings_storage_warn_before_using_data_toggled"),
+    SETTINGS_STORAGE_NORMALIZE_EPISODE_TITLES("settings_storage_normalize_episode_titles"),
 
     /* Settings - Advanced */
     SETTINGS_ADVANCED_SHOWN("settings_advanced_shown"),
@@ -813,4 +861,20 @@ enum class AnalyticsEvent(val key: String) {
     /* Banner Ads */
     BANNER_AD_IMPRESSION("banner_ad_impression"),
     BANNER_AD_TAPPED("banner_ad_tapped"),
+    BANNER_AD_REPORT("banner_ad_report"),
+
+    /* Improved Search */
+    IMPROVED_SEARCH_FILTER_TAPPED("search_filter_tapped"),
+    IMPROVED_SEARCH_SUGGESTIONS_SHOWN("search_predictive_shown"),
+    IMPROVED_SEARCH_SUGGESTIONS_FAILED("search_predictive_failed"),
+    IMPROVED_SEARCH_SUGGESTION_TERM_TAPPED("search_predictive_term_tapped"),
+    IMPROVED_SEARCH_EMPTY_RESULTS("search_empty_results"),
+    IMPROVED_SEARCH_VIEW_ALL_TAPPED("search_predictive_view_all_tapped"),
+
+    /* App Ratings */
+    USER_SATISFACTION_SURVEY_SHOWN("user_satisfaction_survey_shown"),
+    USER_SATISFACTION_SURVEY_NOT_SHOWN("user_satisfaction_survey_not_shown"),
+    USER_SATISFACTION_SURVEY_DISMISSED("user_satisfaction_survey_dismissed"),
+    USER_SATISFACTION_SURVEY_YES_RESPONSE("user_satisfaction_survey_yes_response"),
+    USER_SATISFACTION_SURVEY_NO_RESPONSE("user_satisfaction_survey_no_response"),
 }

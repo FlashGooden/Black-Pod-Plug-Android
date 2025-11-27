@@ -19,7 +19,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.wear.compose.foundation.ExperimentalWearFoundationApi
@@ -140,6 +140,7 @@ fun NowPlayingScreen(
                             sidePadding = 12.dp,
                         )
                     }
+
                     is NowPlayingViewModel.State.Empty -> {
                         PodcastControlButtonsStyled(
                             onPlayButtonClick = {},
@@ -158,6 +159,7 @@ fun NowPlayingScreen(
                             seekIconAlign = Alignment.CenterHorizontally,
                         )
                     }
+
                     is NowPlayingViewModel.State.Loading -> {}
                 }
             },
@@ -172,7 +174,9 @@ fun NowPlayingScreen(
             },
             background = {
                 when (state) {
-                    NowPlayingViewModel.State.Loading -> Unit // Do Nothing
+                    NowPlayingViewModel.State.Loading -> Unit
+
+                    // Do Nothing
                     NowPlayingViewModel.State.Empty -> Unit
 
                     is NowPlayingViewModel.State.Loaded -> {

@@ -30,7 +30,6 @@ import au.com.shiftyjelly.pocketcasts.repositories.playback.UpNextQueue
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.FolderManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
-import au.com.shiftyjelly.pocketcasts.repositories.podcast.SmartPlaylistManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.UserEpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.searchhistory.SearchHistoryManager
 import au.com.shiftyjelly.pocketcasts.repositories.sync.SyncManager
@@ -67,8 +66,6 @@ class AccountDetailsFragment : BaseFragment() {
     @Inject lateinit var episodeManager: EpisodeManager
 
     @Inject lateinit var folderManager: FolderManager
-
-    @Inject lateinit var smartPlaylistManager: SmartPlaylistManager
 
     @Inject lateinit var playbackManager: PlaybackManager
 
@@ -114,6 +111,7 @@ class AccountDetailsFragment : BaseFragment() {
                 }
             },
             onClickSubscribe = { planKey ->
+                // this is an old onboarding flow callback, we still want to track this event here
                 analyticsTracker.track(AnalyticsEvent.PLUS_PROMOTION_UPGRADE_BUTTON_TAPPED)
                 val source = OnboardingUpgradeSource.PROFILE
                 val onboardingFlow = OnboardingFlow.PlusAccountUpgrade(source, planKey.tier, planKey.billingCycle)
@@ -159,7 +157,13 @@ class AccountDetailsFragment : BaseFragment() {
             onSignOut = { signOut() },
             onDeleteAccount = { deleteAccount() },
             onAccountUpgradeClick = {
-                analyticsTracker.track(AnalyticsEvent.PLUS_PROMOTION_UPGRADE_BUTTON_TAPPED, mapOf("version" to "1"))
+                analyticsTracker.track(
+                    AnalyticsEvent.PLUS_PROMOTION_BANNER_BUTTON_TAPPED,
+                    mapOf(
+                        "source" to OnboardingUpgradeSource.PROFILE.analyticsValue,
+                        "flow" to OnboardingFlow.NewOnboardingAccountUpgrade.analyticsValue,
+                    ),
+                )
                 val onboardingFlow = OnboardingFlow.NewOnboardingAccountUpgrade
                 OnboardingLauncher.openOnboardingFlow(requireActivity(), onboardingFlow)
             },
@@ -269,7 +273,6 @@ class AccountDetailsFragment : BaseFragment() {
         userManager.signOutAndClearData(
             playbackManager = playbackManager,
             upNextQueue = upNextQueue,
-            smartPlaylistManager = smartPlaylistManager,
             folderManager = folderManager,
             searchHistoryManager = searchHistoryManager,
             episodeManager = episodeManager,

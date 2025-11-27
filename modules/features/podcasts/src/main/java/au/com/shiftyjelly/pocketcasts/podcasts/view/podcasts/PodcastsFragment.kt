@@ -62,13 +62,14 @@ import au.com.shiftyjelly.pocketcasts.analytics.SourceView
 import au.com.shiftyjelly.pocketcasts.compose.AppTheme
 import au.com.shiftyjelly.pocketcasts.compose.CallOnce
 import au.com.shiftyjelly.pocketcasts.compose.ad.AdBanner
-import au.com.shiftyjelly.pocketcasts.compose.ad.BlazeAd
 import au.com.shiftyjelly.pocketcasts.compose.ad.rememberAdColors
 import au.com.shiftyjelly.pocketcasts.compose.components.NoContentBanner
 import au.com.shiftyjelly.pocketcasts.compose.components.TipPosition
 import au.com.shiftyjelly.pocketcasts.compose.components.Tooltip
 import au.com.shiftyjelly.pocketcasts.compose.extensions.setContentWithViewCompositionStrategy
+import au.com.shiftyjelly.pocketcasts.models.entity.BlazeAd
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
+import au.com.shiftyjelly.pocketcasts.models.to.FolderItem
 import au.com.shiftyjelly.pocketcasts.models.to.RefreshState
 import au.com.shiftyjelly.pocketcasts.models.type.PodcastsSortType
 import au.com.shiftyjelly.pocketcasts.podcasts.R
@@ -93,7 +94,7 @@ import au.com.shiftyjelly.pocketcasts.utils.extensions.hideShadow
 import au.com.shiftyjelly.pocketcasts.utils.featureflag.Feature
 import au.com.shiftyjelly.pocketcasts.utils.featureflag.FeatureFlag
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
-import au.com.shiftyjelly.pocketcasts.views.adapter.PodcastTouchCallback
+import au.com.shiftyjelly.pocketcasts.views.adapter.LockingDragAndDropCallback
 import au.com.shiftyjelly.pocketcasts.views.extensions.quickScrollToTop
 import au.com.shiftyjelly.pocketcasts.views.fragments.BaseFragment
 import au.com.shiftyjelly.pocketcasts.views.fragments.BaseFragmentToolbar.ChromeCastButton.Shown
@@ -117,7 +118,6 @@ import au.com.shiftyjelly.pocketcasts.views.R as VR
 class PodcastsFragment :
     BaseFragment(),
     FolderAdapter.ClickListener,
-    PodcastTouchCallback.ItemTouchHelperAdapter,
     Toolbar.OnMenuItemClickListener,
     TopScrollable {
 
@@ -197,10 +197,15 @@ class PodcastsFragment :
 
         binding.appBarLayout.hideShadow()
 
+        val dragAndDropCallback = LockingDragAndDropCallback(
+            scope = viewLifecycleOwner.lifecycleScope,
+            adapter = folderAdapter,
+            commitItems = viewModel::reorderItems,
+        )
         binding.recyclerView.let {
             it.adapter = adapter
             it.addItemDecoration(SpaceItemDecoration())
-            ItemTouchHelper(PodcastTouchCallback(this, context)).attachToRecyclerView(it)
+            ItemTouchHelper(dragAndDropCallback).attachToRecyclerView(it)
         }
 
         if (savedInstanceState == null) {
@@ -615,16 +620,6 @@ class PodcastsFragment :
         }
     }
 
-    override fun onPodcastMove(fromPosition: Int, toPosition: Int) {
-        val newList = viewModel.moveFolderItem(fromPosition, toPosition)
-        folderAdapter?.submitList(newList)
-    }
-
-    override fun onPodcastMoveFinished() {
-        viewModel.commitMoves()
-        analyticsTracker.track(AnalyticsEvent.PODCASTS_LIST_REORDERED)
-    }
-
     override fun onPodcastClick(podcast: Podcast, view: View) {
         analyticsTracker.track(AnalyticsEvent.PODCASTS_LIST_PODCAST_TAPPED)
         val fragment = PodcastFragment.newInstance(podcastUuid = podcast.uuid, sourceView = SourceView.PODCAST_LIST)
@@ -703,7 +698,7 @@ class PodcastsFragment :
     private fun openAd(ad: BlazeAd) {
         trackAdTapped(ad)
         runCatching {
-            val intent = Intent(Intent.ACTION_VIEW, ad.ctaUrl.toUri())
+            val intent = Intent(Intent.ACTION_VIEW, ad.url.toUri())
             startActivity(intent)
         }.onFailure { LogBuffer.e("Ads", it, "Failed to open an ad: ${ad.id}") }
     }
@@ -717,23 +712,11 @@ class PodcastsFragment :
     }
 
     private fun trackAdImpression(ad: BlazeAd) {
-        analyticsTracker.track(
-            AnalyticsEvent.BANNER_AD_IMPRESSION,
-            mapOf(
-                "promotion" to "podcast_list",
-                "id" to ad.id,
-            ),
-        )
+        analyticsTracker.trackBannerAdImpression(id = ad.id, location = ad.location.value)
     }
 
     fun trackAdTapped(ad: BlazeAd) {
-        analyticsTracker.track(
-            AnalyticsEvent.BANNER_AD_TAPPED,
-            mapOf(
-                "promotion" to "podcast_list",
-                "id" to ad.id,
-            ),
-        )
+        analyticsTracker.trackBannerAdTapped(id = ad.id, location = ad.location.value)
     }
 
     inner class SpaceItemDecoration : RecyclerView.ItemDecoration() {
@@ -743,6 +726,7 @@ class PodcastsFragment :
                 PodcastGridLayoutType.LARGE_ARTWORK, PodcastGridLayoutType.SMALL_ARTWORK -> {
                     outRect.set(gridItemPadding, gridItemPadding, gridItemPadding, gridItemPadding)
                 }
+
                 PodcastGridLayoutType.LIST_VIEW -> Unit
             }
         }

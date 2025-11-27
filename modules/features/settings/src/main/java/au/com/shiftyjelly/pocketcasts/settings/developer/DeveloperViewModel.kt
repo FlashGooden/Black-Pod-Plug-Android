@@ -5,12 +5,16 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.preferences.model.AppReviewReason
+import au.com.shiftyjelly.pocketcasts.repositories.appreview.AppReviewManagerImpl
 import au.com.shiftyjelly.pocketcasts.repositories.download.UpdateEpisodeDetailsTask
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.SuggestedFoldersManager
 import com.automattic.android.tracks.crashlogging.CrashLogging
+import com.google.android.play.core.ktx.requestReview
+import com.google.android.play.core.review.testing.FakeReviewManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -34,7 +38,9 @@ class DeveloperViewModel
     private val settings: Settings,
     @ApplicationContext private val context: Context,
     private val crashLogging: CrashLogging,
+    private val appReviewManagerImpl: AppReviewManagerImpl,
 ) : ViewModel() {
+    private val reviewManager = FakeReviewManager(context)
 
     fun forceRefresh() {
         podcastManager.refreshPodcasts(fromLog = "dev")
@@ -151,7 +157,7 @@ class DeveloperViewModel
     }
 
     fun resetEoYModalProfileBadge() {
-        settings.setEndOfYearShowBadge2023(true)
+        settings.setEndOfYearShowBadge2025(true)
         settings.setEndOfYearShowModal(true)
     }
 
@@ -175,5 +181,12 @@ class DeveloperViewModel
 
     fun resetNotificationsPrompt() {
         settings.notificationsPromptAcknowledged.set(false, updateModifiedAt = false)
+    }
+
+    fun showAppReviewPrompt() {
+        viewModelScope.launch {
+            val reviewInfo = reviewManager.requestReview()
+            appReviewManagerImpl.triggerPrompt(AppReviewReason.DevelopmentTrigger, reviewInfo)
+        }
     }
 }

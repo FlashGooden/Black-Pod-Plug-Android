@@ -2,8 +2,8 @@ package au.com.shiftyjelly.pocketcasts.models.entity
 
 import android.content.Context
 import android.content.res.Resources
-import android.graphics.Color
 import android.text.format.DateUtils
+import androidx.core.graphics.toColorInt
 import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
@@ -19,6 +19,7 @@ import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.models.to.PodcastGrouping
 import au.com.shiftyjelly.pocketcasts.models.type.EpisodesSortType
 import au.com.shiftyjelly.pocketcasts.models.type.TrimMode
+import au.com.shiftyjelly.pocketcasts.utils.extensions.unidecode
 import java.io.Serializable
 import java.net.MalformedURLException
 import java.net.URL
@@ -98,20 +99,37 @@ data class Podcast(
     @ColumnInfo(name = "is_private") var isPrivate: Boolean = false,
     @ColumnInfo(name = "is_header_expanded", defaultValue = "1") var isHeaderExpanded: Boolean = true,
     @ColumnInfo(name = "funding_url") var fundingUrl: String? = null,
+    @ColumnInfo(name = "slug") var slug: String = "",
     @Embedded(prefix = "bundle") var singleBundle: Bundle? = null,
     @Ignore val episodes: MutableList<PodcastEpisode> = mutableListOf(),
 ) : Serializable {
 
     constructor() : this(uuid = "")
 
-    enum class AutoAddUpNext(val databaseInt: Int, val analyticsValue: String) {
-        OFF(0, "off"),
-        PLAY_LAST(1, "add_last"),
-        PLAY_NEXT(2, "add_first"),
+    enum class AutoAddUpNext(
+        val databaseInt: Int,
+        val analyticsValue: String,
+        val labelId: Int,
+    ) {
+        OFF(
+            databaseInt = 0,
+            analyticsValue = "off",
+            labelId = LR.string.off,
+        ),
+        PLAY_LAST(
+            databaseInt = 1,
+            analyticsValue = "add_last",
+            labelId = LR.string.play_last,
+        ),
+        PLAY_NEXT(
+            databaseInt = 2,
+            analyticsValue = "add_first",
+            labelId = LR.string.play_next,
+        ),
         ;
 
         companion object {
-            fun fromDatabaseInt(int: Int?) = values().firstOrNull { it.databaseInt == int }
+            fun fromDatabaseInt(int: Int?) = entries.firstOrNull { it.databaseInt == int }
         }
     }
 
@@ -129,21 +147,17 @@ data class Podcast(
         const val AUTO_DOWNLOAD_NEW_EPISODES = 1
     }
 
+    @ColumnInfo(name = "clean_title")
+    var cleanTitle: String = ""
+        get() = title.unidecode()
+        internal set
+
     @Transient
     @Ignore
     var unplayedEpisodeCount: Int = 0
 
     val isAutoDownloadNewEpisodes: Boolean
         get() = autoDownloadStatus == AUTO_DOWNLOAD_NEW_EPISODES
-
-    val isAutoAddToUpNextOff: Boolean
-        get() = autoAddToUpNext == AutoAddUpNext.OFF
-
-    val isAutoAddToUpNextPlayLast: Boolean
-        get() = autoAddToUpNext == AutoAddUpNext.PLAY_LAST
-
-    val isAutoAddToUpNextPlayNext: Boolean
-        get() = autoAddToUpNext == AutoAddUpNext.PLAY_NEXT
 
     val adapterId: Long
         get() = UUID.nameUUIDFromBytes(uuid.toByteArray()).mostSignificantBits
@@ -236,7 +250,7 @@ data class Podcast(
             } else {
                 host
             }
-        } catch (e: MalformedURLException) {
+        } catch (_: MalformedURLException) {
             ""
         }
     }
@@ -280,9 +294,13 @@ data class Podcast(
         val resources = context.resources
         return when {
             expectedTime < sevenDaysAgo -> null
+
             DateUtils.isToday(expectedTime) -> resources.getString(LR.string.podcast_next_episode_today)
+
             DateUtils.isToday(expectedTime - DateUtils.DAY_IN_MILLIS) -> resources.getString(LR.string.podcast_next_episode_tomorrow)
+
             expectedTime in sevenDaysAgo..now -> resources.getString(LR.string.podcast_next_episode_any_day_now)
+
             else -> {
                 val formattedDate = RelativeDateFormatter(context).format(expectedDate)
                 resources.getString(LR.string.podcast_next_episode_value, formattedDate)
@@ -315,10 +333,10 @@ data class Podcast(
     }
 }
 
-private val DEFAULT_SERVER_LIGHT_TINT_COLOR = Color.parseColor("#F44336")
-private val DEFAULT_SERVER_DARK_TINT_COLOR = Color.parseColor("#C62828")
-private val DEFAULT_LIGHT_TINT = Color.parseColor("#1E1F1E")
-private val DEFAULT_DARK_TINT = Color.parseColor("#FFFFFF")
+private val DEFAULT_SERVER_LIGHT_TINT_COLOR = "#F44336".toColorInt()
+private val DEFAULT_SERVER_DARK_TINT_COLOR = "#C62828".toColorInt()
+private val DEFAULT_LIGHT_TINT = "#1E1F1E".toColorInt()
+private val DEFAULT_DARK_TINT = "#FFFFFF".toColorInt()
 
 private val KnownCategoryIds = mapOf(
     "arts" to 1,

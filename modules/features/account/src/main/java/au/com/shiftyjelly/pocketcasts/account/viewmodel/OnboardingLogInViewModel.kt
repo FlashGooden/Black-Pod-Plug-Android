@@ -14,6 +14,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.subscription.SubscriptionMana
 import au.com.shiftyjelly.pocketcasts.repositories.sync.LoginResult
 import au.com.shiftyjelly.pocketcasts.repositories.sync.SignInSource
 import au.com.shiftyjelly.pocketcasts.repositories.sync.SyncManager
+import au.com.shiftyjelly.pocketcasts.settings.onboarding.OnboardingFlow
 import au.com.shiftyjelly.pocketcasts.utils.Network
 import au.com.shiftyjelly.pocketcasts.utils.extensions.isGooglePlayServicesAvailableSuccess
 import com.google.android.gms.common.GoogleApiAvailability
@@ -62,6 +63,18 @@ class OnboardingLogInViewModel @Inject constructor(
         _state.update { it.copy(password = password) }
     }
 
+    fun onSignInButtonTapped(flow: OnboardingFlow) {
+        analyticsTracker.trackSignInButtonTapped(
+            flow = flow.analyticsValue,
+        )
+    }
+
+    fun onForgotPasswordTapped(flow: OnboardingFlow) {
+        analyticsTracker.trackSignInForgotPasswordTapped(
+            flow = flow.analyticsValue,
+        )
+    }
+
     fun logIn(onSuccessfulLogin: (Subscription?) -> Unit) {
         _state.update { it.copy(hasAttemptedLogIn = true, isNetworkAvailable = Network.isConnected(getApplication())) }
 
@@ -77,7 +90,7 @@ class OnboardingLogInViewModel @Inject constructor(
             )
         }
 
-        subscriptionManager.clearCachedSubscription()
+        subscriptionManager.clearCachedMembership()
 
         viewModelScope.launch {
             val result = syncManager.loginWithEmailAndPassword(

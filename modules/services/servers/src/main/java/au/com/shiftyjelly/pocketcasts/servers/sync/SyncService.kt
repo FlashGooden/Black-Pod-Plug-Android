@@ -2,7 +2,6 @@ package au.com.shiftyjelly.pocketcasts.servers.sync
 
 import au.com.shiftyjelly.pocketcasts.models.to.HistorySyncRequest
 import au.com.shiftyjelly.pocketcasts.models.to.HistorySyncResponse
-import au.com.shiftyjelly.pocketcasts.preferences.AccessToken
 import au.com.shiftyjelly.pocketcasts.servers.sync.forgotpassword.ForgotPasswordRequest
 import au.com.shiftyjelly.pocketcasts.servers.sync.forgotpassword.ForgotPasswordResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.history.HistoryYearResponse
@@ -15,15 +14,19 @@ import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginTokenResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.register.RegisterRequest
 import com.pocketcasts.service.api.BookmarkRequest
 import com.pocketcasts.service.api.BookmarksResponse
+import com.pocketcasts.service.api.EpisodesResponse
 import com.pocketcasts.service.api.PodcastRatingAddRequest
 import com.pocketcasts.service.api.PodcastRatingResponse
 import com.pocketcasts.service.api.PodcastRatingShowRequest
 import com.pocketcasts.service.api.PodcastRatingsResponse
+import com.pocketcasts.service.api.PodcastsEpisodesRequest
 import com.pocketcasts.service.api.ReferralCodeResponse
 import com.pocketcasts.service.api.ReferralRedemptionRequest
 import com.pocketcasts.service.api.ReferralRedemptionResponse
 import com.pocketcasts.service.api.ReferralValidationResponse
 import com.pocketcasts.service.api.SupportFeedbackRequest
+import com.pocketcasts.service.api.SyncUpdateRequest
+import com.pocketcasts.service.api.SyncUpdateResponse
 import com.pocketcasts.service.api.UserPlaylistListRequest
 import com.pocketcasts.service.api.UserPlaylistListResponse
 import com.pocketcasts.service.api.UserPodcastListRequest
@@ -36,8 +39,6 @@ import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
-import retrofit2.http.FieldMap
-import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Headers
@@ -46,8 +47,6 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Url
-import com.pocketcasts.service.api.SyncUpdateRequest as SyncUpdateProtoRequest
-import com.pocketcasts.service.api.SyncUpdateResponse as SyncUpdateProtoResponse
 
 interface SyncService {
     @POST("/user/login_pocket_casts")
@@ -80,13 +79,9 @@ interface SyncService {
     @POST("/user/named_settings/update")
     suspend fun namedSettings(@Header("Authorization") authorization: String, @Body request: NamedSettingsRequest): NamedSettingsResponse
 
-    @FormUrlEncoded
-    @POST("/sync/update")
-    suspend fun syncUpdate(@FieldMap fields: Map<String, String>): au.com.shiftyjelly.pocketcasts.servers.sync.update.SyncUpdateResponse
-
     @Headers("Content-Type: application/octet-stream")
     @POST("/user/sync/update")
-    suspend fun syncUpdate(@Header("Authorization") authorization: String, @Body request: SyncUpdateProtoRequest): SyncUpdateProtoResponse
+    suspend fun syncUpdate(@Header("Authorization") authorization: String, @Body request: SyncUpdateRequest): SyncUpdateResponse
 
     @POST("/up_next/sync")
     suspend fun upNextSync(@Header("Authorization") authorization: String, @Body request: UpNextSyncRequest): UpNextSyncResponse
@@ -110,6 +105,10 @@ interface SyncService {
     @Headers("Content-Type: application/octet-stream")
     @POST("/user/playlist/list")
     suspend fun getPlaylists(@Header("Authorization") authorization: String, @Body request: UserPlaylistListRequest): UserPlaylistListResponse
+
+    @Headers("Content-Type: application/octet-stream")
+    @POST("/user/episodes")
+    suspend fun getEpisodes(@Header("Authorization") authorization: String, @Body request: PodcastsEpisodesRequest): EpisodesResponse
 
     @POST("/history/sync")
     fun historySync(@Header("Authorization") authorization: String, @Body request: HistorySyncRequest): Single<HistorySyncResponse>

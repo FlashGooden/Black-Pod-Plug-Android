@@ -83,9 +83,12 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.Constraints
@@ -176,10 +179,9 @@ internal fun PodcastHeader(
         ) {
             PodcastImage(
                 uuid = uuid,
-                cornerSize = 8.dp,
+                imageSize = coverSize,
                 elevation = 16.dp,
                 modifier = Modifier
-                    .size(coverSize)
                     .combinedClickable(
                         indication = null,
                         interactionSource = null,
@@ -328,9 +330,13 @@ private fun PodcastCategoriesLabel(
                     LinkAnnotation.Clickable(
                         tag = "category",
                         linkInteractionListener = LinkInteractionListener { onClickCategory() },
+                        styles = TextLinkStyles(
+                            style = SpanStyle(textDecoration = TextDecoration.None),
+                            focusedStyle = SpanStyle(textDecoration = TextDecoration.Underline),
+                        ),
                     ),
                     start = 0,
-                    end = category.length + if (author.isNotBlank()) 2 else 0,
+                    end = category.length,
                 )
             }
         }

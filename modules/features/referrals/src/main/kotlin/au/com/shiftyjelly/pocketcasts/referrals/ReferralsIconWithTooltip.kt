@@ -28,7 +28,7 @@ import au.com.shiftyjelly.pocketcasts.localization.R as LR
 
 @Composable
 fun ReferralsIconWithTooltip(
-    state: ReferralsViewModel.UiState,
+    state: UiState,
     onIconClick: () -> Unit,
     onTooltipClick: () -> Unit,
     onTooltipShow: () -> Unit,
@@ -39,6 +39,7 @@ fun ReferralsIconWithTooltip(
 
     when (state) {
         is UiState.Loading, UiState.NoOffer -> Unit
+
         is UiState.Loaded -> {
             ReferralsIconWithTooltip(
                 state = state,
@@ -62,13 +63,14 @@ private fun ReferralsIconWithTooltip(
                 colors = LocalColors.current.colors,
             )
 
-            TooltipPopup(
-                show = state.showTooltip,
-                title = stringResource(LR.string.referrals_tooltip_message, state.referralPlan.offerDurationText),
-                tipPosition = TipPosition.TopStart,
-                anchorOffset = DpOffset(0.dp, -4.dp),
-                onClick = onTooltipClick,
-            )
+            if (state.showTooltip) {
+                TooltipPopup(
+                    title = stringResource(LR.string.referrals_tooltip_message, state.referralPlan.offerDurationText),
+                    tipPosition = TipPosition.TopStart,
+                    anchorOffset = DpOffset(0.dp, (-4).dp),
+                    onClick = onTooltipClick,
+                )
+            }
         }
     }
 }

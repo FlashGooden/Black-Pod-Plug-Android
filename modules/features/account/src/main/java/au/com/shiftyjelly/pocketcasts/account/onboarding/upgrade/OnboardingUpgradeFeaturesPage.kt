@@ -1,7 +1,6 @@
 package au.com.shiftyjelly.pocketcasts.account.onboarding.upgrade
 
 import androidx.activity.SystemBarStyle
-import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -133,7 +132,9 @@ internal fun OnboardingUpgradeFeaturesPage(
     SetStatusBarBackground(scrollState, onUpdateSystemBars)
 
     when (state) {
-        is OnboardingUpgradeFeaturesState.Loading -> Unit // Do Nothing
+        is OnboardingUpgradeFeaturesState.Loading -> Unit
+
+        // Do Nothing
         is OnboardingUpgradeFeaturesState.Loaded -> {
             if (FeatureFlag.isEnabled(Feature.NEW_ONBOARDING_UPGRADE)) {
                 OnboardingUpgradeScreen(
@@ -146,10 +147,11 @@ internal fun OnboardingUpgradeFeaturesPage(
                     },
                     state = state,
                     source = source,
-                    onChangeSelectedPlan = { viewModel.changeBillingCycle(it.billingCycle) },
+                    onChangeSelectedPlan = { viewModel.changeBillingCycle(it.billingCycle, source) },
                     onSubscribePress = { onClickSubscribe(false) },
-                    onClickPrivacyPolicy = { viewModel.onPrivacyPolicyPressed() },
-                    onClickTermsAndConditions = { viewModel.onTermsAndConditionsPressed() },
+                    onClickPrivacyPolicy = { viewModel.onPrivacyPolicyPressed(source) },
+                    onClickTermsAndConditions = { viewModel.onTermsAndConditionsPressed(source) },
+                    onClickSeeAllFeatures = { viewModel.onReportSeeAllFeaturesPressed(it, source) },
                 )
             } else {
                 UpgradeLayout(
@@ -161,8 +163,8 @@ internal fun OnboardingUpgradeFeaturesPage(
                     onChangeBillingCycle = { viewModel.changeBillingCycle(it) },
                     onChangeSubscriptionTier = { viewModel.changeSubscriptionTier(it) },
                     onClickSubscribe = { onClickSubscribe(false) },
-                    onClickPrivacyPolicy = { viewModel.onPrivacyPolicyPressed() },
-                    onClickTermsAndConditions = { viewModel.onTermsAndConditionsPressed() },
+                    onClickPrivacyPolicy = { viewModel.onPrivacyPolicyPressed(source) },
+                    onClickTermsAndConditions = { viewModel.onTermsAndConditionsPressed(source) },
                 )
             }
         }
@@ -225,8 +227,8 @@ private fun UpgradeLayout(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         NavigationIconButton(
-                            onNavigationClick = onBackPress,
-                            iconColor = Color.White,
+                            onClick = onBackPress,
+                            tint = Color.White,
                             modifier = Modifier
                                 .height(48.dp)
                                 .width(48.dp),
@@ -408,6 +410,7 @@ private fun FeatureCard(
                     SubscriptionBadge(
                         iconRes = subscriptionPlan.badgeIconRes,
                         shortNameRes = subscriptionPlan.shortNameRes,
+                        contentDescriptionRes = subscriptionPlan.badgeContentDescriptionRes,
                         backgroundColor = Color.Black,
                         textColor = Color.White,
                         modifier = Modifier
@@ -435,6 +438,7 @@ private fun FeatureCard(
                     SubscriptionBadge(
                         iconRes = subscriptionPlan.badgeIconRes,
                         shortNameRes = subscriptionPlan.shortNameRes,
+                        contentDescriptionRes = subscriptionPlan.badgeContentDescriptionRes,
                         backgroundColor = Color.Black,
                         textColor = Color.White,
                         modifier = Modifier
@@ -587,8 +591,8 @@ private fun NoSubscriptionsLayout(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NavigationIconButton(
-                onNavigationClick = onBackPress,
-                iconColor = MaterialTheme.theme.colors.primaryText01,
+                onClick = onBackPress,
+                tint = MaterialTheme.theme.colors.primaryText01,
                 modifier = Modifier
                     .height(48.dp)
                     .width(48.dp),

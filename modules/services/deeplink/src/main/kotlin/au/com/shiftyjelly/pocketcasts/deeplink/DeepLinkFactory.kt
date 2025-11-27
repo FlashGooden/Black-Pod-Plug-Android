@@ -23,6 +23,7 @@ import au.com.shiftyjelly.pocketcasts.deeplink.DeepLink.Companion.EXTRA_AUTO_PLA
 import au.com.shiftyjelly.pocketcasts.deeplink.DeepLink.Companion.EXTRA_BOOKMARK_UUID
 import au.com.shiftyjelly.pocketcasts.deeplink.DeepLink.Companion.EXTRA_EPISODE_UUID
 import au.com.shiftyjelly.pocketcasts.deeplink.DeepLink.Companion.EXTRA_PAGE
+import au.com.shiftyjelly.pocketcasts.deeplink.DeepLink.Companion.EXTRA_PLAYLIST_TYPE
 import au.com.shiftyjelly.pocketcasts.deeplink.DeepLink.Companion.EXTRA_PLAYLIST_UUID
 import au.com.shiftyjelly.pocketcasts.deeplink.DeepLink.Companion.EXTRA_PODCAST_UUID
 import au.com.shiftyjelly.pocketcasts.deeplink.DeepLink.Companion.EXTRA_SOURCE_VIEW
@@ -83,10 +84,12 @@ class DeepLinkFactory(
                 Timber.tag(TAG).d("Found a matching deep link: $deepLink")
                 deepLink
             }
+
             0 -> {
                 Timber.tag(TAG).w("No matching deep links found")
                 null
             }
+
             else -> {
                 Timber.tag(TAG).w("Found multiple matching deep links: $deepLinks")
                 deepLinks.first()
@@ -190,9 +193,17 @@ private class ShowPageAdapter : DeepLinkAdapter {
     override fun create(intent: Intent) = if (intent.action == ACTION_VIEW) {
         when (intent.getStringExtra(EXTRA_PAGE)) {
             "podcasts" -> ShowPodcastsDeepLink
+
             "search" -> ShowDiscoverDeepLink
+
             "upnext" -> ShowUpNextModalDeepLink
-            "playlist" -> intent.getStringExtra(EXTRA_PLAYLIST_UUID)?.let(::ShowPlaylistDeepLink)
+
+            "playlist" -> {
+                val uuid = intent.getStringExtra(EXTRA_PLAYLIST_UUID) ?: return null
+                val type = intent.getStringExtra(EXTRA_PLAYLIST_TYPE) ?: return null
+                ShowPlaylistDeepLink(uuid, type)
+            }
+
             else -> null
         }
     } else {
@@ -505,10 +516,12 @@ private class ShareLinkAdapter(
                     startTimestamp = timestamps?.first,
                     endTimestamp = timestamps?.second,
                 )
+
                 uriData.pathSegments[0] == "podcast" -> ShowPodcastDeepLink(
                     podcastUuid = uriData.pathSegments[1],
                     sourceView = uriData.getQueryParameter(EXTRA_SOURCE_VIEW),
                 )
+
                 uriData.pathSegments[0] == "episode" -> ShowEpisodeDeepLink(
                     episodeUuid = uriData.pathSegments[1],
                     podcastUuid = null,
@@ -517,6 +530,7 @@ private class ShareLinkAdapter(
                     autoPlay = uriData.getQueryParameter(EXTRA_AUTO_PLAY).toBoolean(),
                     sourceView = uriData.getQueryParameter(EXTRA_SOURCE_VIEW),
                 )
+
                 // handle the different podcast share links such as /itunes/itunes_id, /feed/feed_url
                 else -> ShowPodcastFromUrlDeepLink(uriData.toString())
             }
@@ -656,12 +670,15 @@ private class DiscoverAdapter : DeepLinkAdapter {
                 "/staffpicks" -> {
                     StaffPicksDeepLink
                 }
+
                 "/trending" -> {
                     TrendingDeepLink
                 }
+
                 "/recommendations" -> {
                     RecommendationsDeepLink
                 }
+
                 else -> {
                     null
                 }

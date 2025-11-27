@@ -7,7 +7,7 @@ import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.EpisodeStatusRule
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.MediaTypeRule
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.PodcastsRule
 import au.com.shiftyjelly.pocketcasts.models.type.SmartRules.ReleaseDateRule
-import au.com.shiftyjelly.pocketcasts.playlists.smart.rules.RulesBuilder
+import au.com.shiftyjelly.pocketcasts.playlists.smart.RulesBuilder
 import kotlin.time.Duration.Companion.minutes
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -158,7 +158,7 @@ class RulesBuilderTest {
     @Test
     fun `apply smart rules with overriding selectable content`() {
         val rules = SmartRules.Default.copy(
-            podcasts = PodcastsRule.Selected(listOf("id-1", "id-3")),
+            podcasts = PodcastsRule.Selected(setOf("id-1", "id-3")),
             episodeDuration = EpisodeDurationRule.Constrained(28.minutes, 30.minutes),
         )
 

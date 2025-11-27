@@ -17,16 +17,15 @@ import au.com.shiftyjelly.pocketcasts.repositories.jobs.VersionMigrationsWorker
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
-import au.com.shiftyjelly.pocketcasts.repositories.podcast.SmartPlaylistManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.UserEpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.refresh.RefreshPodcastsTask
-import au.com.shiftyjelly.pocketcasts.repositories.sync.SyncManager
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
 import au.com.shiftyjelly.pocketcasts.utils.TimberDebugTree
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import au.com.shiftyjelly.pocketcasts.utils.log.RxJavaUncaughtExceptionHandling
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.squareup.moshi.Moshi
 import dagger.hilt.android.HiltAndroidApp
 import java.io.File
 import java.util.concurrent.Executors
@@ -43,11 +42,11 @@ class AutomotiveApplication :
     Application(),
     Configuration.Provider {
 
+    @Inject lateinit var moshi: Moshi
+
     @Inject lateinit var podcastManager: PodcastManager
 
     @Inject lateinit var episodeManager: EpisodeManager
-
-    @Inject lateinit var smartPlaylistManager: SmartPlaylistManager
 
     @Inject lateinit var playbackManager: PlaybackManager
 
@@ -66,8 +65,6 @@ class AutomotiveApplication :
     @Inject lateinit var analyticsTracker: AnalyticsTracker
 
     @Inject lateinit var experimentProvider: ExperimentProvider
-
-    @Inject lateinit var syncManager: SyncManager
 
     @Inject @ApplicationScope
     lateinit var applicationScope: CoroutineScope
@@ -95,15 +92,14 @@ class AutomotiveApplication :
         runBlocking {
             withContext(Dispatchers.Default) {
                 playbackManager.setup()
-                downloadManager.setup(episodeManager, podcastManager, smartPlaylistManager, playbackManager)
+                downloadManager.setup(episodeManager, podcastManager, playbackManager)
                 RefreshPodcastsTask.runNow(this@AutomotiveApplication, applicationScope)
             }
 
             VersionMigrationsWorker.performMigrations(
-                podcastManager = podcastManager,
-                settings = settings,
-                syncManager = syncManager,
                 context = this@AutomotiveApplication,
+                settings = settings,
+                moshi = moshi,
             )
         }
 

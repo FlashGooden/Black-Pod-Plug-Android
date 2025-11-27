@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.sentry)
     alias(libs.plugins.aboutlibraries)
+    alias(libs.plugins.aboutlibraries.android)
     alias(libs.plugins.compose.compiler)
 }
 
@@ -13,6 +14,7 @@ android {
 
     defaultConfig {
         minSdk = project.property("minSdkVersionAutomotive") as Int
+        targetSdk = project.property("targetSdkVersionAutomotive") as Int
         applicationId = project.property("applicationId").toString()
     }
 
@@ -38,6 +40,12 @@ android {
 
     lint {
         checkDependencies = false
+    }
+}
+
+androidComponents {
+    beforeVariants { builder ->
+        builder.enable = builder.buildType != "prototype"
     }
 }
 

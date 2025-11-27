@@ -112,6 +112,9 @@ class ProfileFragment :
             onDismissCreateFreeAccountBannerClick = {
                 profileViewModel.dismissFreeAccountBanner()
             },
+            onEndOfYearCardShow = {
+                profileViewModel.onEndOfYearCardShown()
+            },
             onPlaybackClick = {
                 profileViewModel.onPlaybackClick()
                 (activity as? FragmentHostListener)?.showStoriesOrAccount(StoriesSource.PROFILE.value)
@@ -149,6 +152,11 @@ class ProfileFragment :
         )
     }
 
+    override fun onDestroyView() {
+        getCanScrollBackward = { false }
+        super.onDestroyView()
+    }
+
     override fun onResume() {
         super.onResume()
         profileViewModel.clearFailedRefresh()
@@ -177,9 +185,10 @@ class ProfileFragment :
 
     override fun scrollToTop(): Boolean {
         val canScroll = getCanScrollBackward()
-
-        lifecycleScope.launch {
-            scrollToTopSignal.emit(Unit)
+        if (canScroll) {
+            lifecycleScope.launch {
+                scrollToTopSignal.emit(Unit)
+            }
         }
 
         return canScroll

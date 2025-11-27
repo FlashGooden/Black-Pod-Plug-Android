@@ -11,6 +11,7 @@ import au.com.shiftyjelly.pocketcasts.models.db.helper.PodcastBookmark
 import au.com.shiftyjelly.pocketcasts.models.db.helper.ProfileBookmark
 import au.com.shiftyjelly.pocketcasts.models.entity.Bookmark
 import au.com.shiftyjelly.pocketcasts.models.type.SyncStatus
+import au.com.shiftyjelly.pocketcasts.utils.extensions.unidecode
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -137,15 +138,11 @@ abstract class BookmarkDao {
               (CASE WHEN podcasts.title is NOT NULL THEN /* sort by podcast title if podcast title is not null */
                 (CASE
                       WHEN UPPER(podcasts.title) LIKE 'THE %' THEN SUBSTR(UPPER(podcasts.title), 5)
-                      WHEN UPPER(podcasts.title) LIKE 'A %' THEN SUBSTR(UPPER(podcasts.title), 3)
-                      WHEN UPPER(podcasts.title) LIKE 'AN %' THEN SUBSTR(UPPER(podcasts.title), 4)
                       ELSE UPPER(podcasts.title)
                 END) 
               ELSE /* sort by episode title if podcast title is null */
                 (CASE
                       WHEN UPPER(episodeTitle) LIKE 'THE %' THEN SUBSTR(UPPER(episodeTitle), 5)
-                      WHEN UPPER(episodeTitle) LIKE 'A %' THEN SUBSTR(UPPER(episodeTitle), 3)
-                      WHEN UPPER(episodeTitle) LIKE 'AN %' THEN SUBSTR(UPPER(episodeTitle), 4)
                       ELSE UPPER(episodeTitle)
                   END) 
               END) ASC,
@@ -193,8 +190,24 @@ abstract class BookmarkDao {
     @Query("UPDATE bookmarks SET deleted = :deleted, deleted_modified = :deletedModified, sync_status = :syncStatus WHERE uuid = :uuid")
     abstract suspend fun updateDeleted(uuid: String, deleted: Boolean, deletedModified: Long, syncStatus: SyncStatus)
 
-    @Query("UPDATE bookmarks SET title = :title, title_modified = :titleModified, sync_status = :syncStatus WHERE uuid = :bookmarkUuid")
-    abstract suspend fun updateTitle(bookmarkUuid: String, title: String, titleModified: Long, syncStatus: SyncStatus)
+    @Query("UPDATE bookmarks SET title = :title, clean_title = :cleanTitle, title_modified = :titleModified, sync_status = :syncStatus WHERE uuid = :bookmarkUuid")
+    protected abstract suspend fun updateTitleInternal(
+        bookmarkUuid: String,
+        title: String,
+        cleanTitle: String,
+        titleModified: Long,
+        syncStatus: SyncStatus,
+    )
+
+    suspend fun updateTitle(bookmarkUuid: String, title: String, titleModified: Long, syncStatus: SyncStatus) {
+        updateTitleInternal(
+            bookmarkUuid = bookmarkUuid,
+            title = title,
+            cleanTitle = title.unidecode(),
+            titleModified = titleModified,
+            syncStatus = syncStatus,
+        )
+    }
 
     @Query("SELECT * FROM bookmarks WHERE sync_status = :syncStatus")
     abstract fun findNotSyncedBlocking(syncStatus: SyncStatus = SyncStatus.NOT_SYNCED): List<Bookmark>
@@ -219,4 +232,7 @@ abstract class BookmarkDao {
             AND deleted = :deleted""",
     )
     abstract fun findUserEpisodesBookmarksFlow(deleted: Boolean = false): Flow<List<Bookmark>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM bookmarks WHERE episode_uuid IS :episodeUuid)")
+    abstract fun hasBookmarksFlow(episodeUuid: String): Flow<Boolean>
 }

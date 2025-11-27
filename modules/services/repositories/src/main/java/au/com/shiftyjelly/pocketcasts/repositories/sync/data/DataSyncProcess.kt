@@ -4,26 +4,37 @@ import android.content.Context
 import androidx.lifecycle.asFlow
 import androidx.work.Operation
 import au.com.shiftyjelly.pocketcasts.models.db.AppDatabase
+import au.com.shiftyjelly.pocketcasts.models.entity.UserPodcastRating
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.repositories.file.FileStorage
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.FolderManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
+import au.com.shiftyjelly.pocketcasts.repositories.podcast.UserEpisodeManager
+import au.com.shiftyjelly.pocketcasts.repositories.ratings.RatingsManager
+import au.com.shiftyjelly.pocketcasts.repositories.subscription.SubscriptionManager
+import au.com.shiftyjelly.pocketcasts.repositories.sync.SyncHistoryTask
 import au.com.shiftyjelly.pocketcasts.repositories.sync.SyncManager
 import au.com.shiftyjelly.pocketcasts.repositories.sync.UpNextSyncWorker
 import au.com.shiftyjelly.pocketcasts.repositories.user.StatsManager
+import au.com.shiftyjelly.pocketcasts.servers.extensions.toDate
 import au.com.shiftyjelly.pocketcasts.servers.sync.SyncSettingsTask
+import au.com.shiftyjelly.pocketcasts.utils.AppPlatform
+import au.com.shiftyjelly.pocketcasts.utils.Util
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import com.pocketcasts.service.api.Record
 import com.pocketcasts.service.api.SyncUpdateRequest
 import com.pocketcasts.service.api.bookmarkOrNull
 import com.pocketcasts.service.api.episodeOrNull
 import com.pocketcasts.service.api.folderOrNull
+import com.pocketcasts.service.api.modifiedAtOrNull
 import com.pocketcasts.service.api.playlistOrNull
 import com.pocketcasts.service.api.podcastOrNull
 import com.pocketcasts.service.api.syncUpdateRequest
 import java.time.Instant
 import java.util.UUID
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.measureTimedValue
 import kotlinx.coroutines.CancellationException
@@ -33,17 +44,20 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
-import timber.log.Timber
 
 class DataSyncProcess(
     private val syncManager: SyncManager,
     private val podcastManager: PodcastManager,
     private val folderManager: FolderManager,
     private val episodeManager: EpisodeManager,
+    private val userEpisodeManager: UserEpisodeManager,
     private val playbackManager: PlaybackManager,
     private val statsManager: StatsManager,
+    private val subscriptionManager: SubscriptionManager,
+    private val ratingsManager: RatingsManager,
     private val appDatabase: AppDatabase,
     private val settings: Settings,
+    private val fileStorage: FileStorage,
     private val context: Context,
 ) {
     private val logger = DataSyncLogger()
@@ -53,6 +67,7 @@ class DataSyncProcess(
     private val playlistSync = PlaylistSync(syncManager, appDatabase)
     private val bookmarkSync = BookmarkSync(syncManager, appDatabase)
     private val deviceSync = DeviceSync(statsManager, settings)
+    private val missingEpisodesSync = MissingEpisodesSync(syncManager, appDatabase)
 
     suspend fun sync(): Result<Unit> {
         return logProcess("data") {
@@ -64,12 +79,12 @@ class DataSyncProcess(
                     val newSyncTime = syncData(lastSyncTime)
                     settings.setLastModified(newSyncTime.toString())
                     syncSettings(lastSyncTime)
-                    Timber.d("Sync cloud files")
-                    Timber.d("Sync broken files")
-                    Timber.d("Sync playback history")
-                    Timber.d("Sync podcast ratings")
+                    syncCloudFiles()
+                    syncBrokenFiles()
+                    syncPlaybackHistory()
+                    syncPodcastRatings()
                 }
-            }
+            }.onFailure { settings.recordErrorSession() }
         }
     }
 
@@ -78,13 +93,13 @@ class DataSyncProcess(
         return if (isInitialSync) {
             val syncTime = syncFullData()
             syncUpNext()
+            syncMissingEpisodes()
             syncTime
         } else {
-            if (settings.getHomeGridNeedsRefresh()) {
-                Timber.d("Sync home grid")
-            }
             syncUpNext()
-            syncIncrementalData(lastSyncTime)
+            val syncTime = syncIncrementalData(lastSyncTime)
+            syncMissingEpisodes()
+            syncTime
         }
     }
 
@@ -147,29 +162,69 @@ class DataSyncProcess(
     private suspend fun syncUpNext() {
         logProcess("up-next") {
             val operation = UpNextSyncWorker.enqueue(syncManager, context)
-            if (operation != null) {
-                val state = withTimeoutOrNull(1.minutes) {
-                    operation.state.asFlow().first { state ->
-                        when (state) {
-                            is Operation.State.SUCCESS -> true
-                            is Operation.State.FAILURE -> true
-                            else -> false
-                        }
-                    }
-                }
-                when (state) {
-                    is Operation.State.SUCCESS -> Unit
-                    is Operation.State.FAILURE -> logError("Up Next failed to sync", state.throwable)
-                    null -> logInfo("Up Next didn't sync in time (it still runs in the background)")
-                    else -> logInfo("Unexpected Up Next sync state: $state")
-                }
-            }
+            operation?.awaitOperation("Up Next", timeoutDuration = 1.minutes)
+        }
+    }
+
+    private suspend fun syncMissingEpisodes() {
+        logProcess("missing-episodes") {
+            missingEpisodesSync.sync()
         }
     }
 
     private suspend fun syncSettings(lastSyncTime: Instant) {
         logProcess("settings") {
             SyncSettingsTask.run(settings, lastSyncTime, syncManager).getOrThrow()
+        }
+    }
+
+    private suspend fun syncCloudFiles() {
+        logProcess("cloud-files") {
+            val subscription = subscriptionManager.fetchFreshSubscription()
+            if (subscription != null) {
+                userEpisodeManager.syncFiles(playbackManager)
+            }
+        }
+    }
+
+    private suspend fun syncBrokenFiles() {
+        val firstSync = settings.isFirstSyncRun()
+        if (firstSync) {
+            logProcess("broken-files") {
+                fileStorage.fixBrokenFiles(episodeManager)
+                settings.setFirstSyncRun(false)
+            }
+        }
+    }
+
+    private suspend fun syncPlaybackHistory() {
+        // We don't use playback history on Wear OS
+        if (!Util.isWearOs(context)) {
+            logProcess("playback-history") {
+                val operation = SyncHistoryTask.scheduleToRun(context)
+                operation.awaitOperation("Playback History", timeoutDuration = 5.minutes)
+            }
+        }
+    }
+
+    private suspend fun syncPodcastRatings() {
+        // Rating are available only on the Phone platform
+        if (Util.getAppPlatform(context) == AppPlatform.Phone) {
+            logProcess("ratings") {
+                val ratings = syncManager.getPodcastRatings()?.podcastRatingsList
+                    ?.mapNotNull { serverRating ->
+                        serverRating.modifiedAtOrNull?.toDate()?.let { modifiedAt ->
+                            UserPodcastRating(
+                                podcastUuid = serverRating.podcastUuid,
+                                rating = serverRating.podcastRating,
+                                modifiedAt = modifiedAt,
+                            )
+                        }
+                    }
+                if (ratings != null) {
+                    ratingsManager.updateUserRatings(ratings)
+                }
+            }
         }
     }
 
@@ -197,6 +252,27 @@ class DataSyncProcess(
 
     private inline fun <T> logProcess(name: String, process: DataSyncLogger.() -> T): T {
         return logger.logProcess(name) { logger.process() }
+    }
+
+    private suspend fun Operation.awaitOperation(
+        operationName: String,
+        timeoutDuration: Duration,
+    ) {
+        val state = withTimeoutOrNull(timeoutDuration) {
+            state.asFlow().first { state ->
+                when (state) {
+                    is Operation.State.SUCCESS -> true
+                    is Operation.State.FAILURE -> true
+                    else -> false
+                }
+            }
+        }
+        when (state) {
+            is Operation.State.SUCCESS -> Unit
+            is Operation.State.FAILURE -> logger.logError("$operationName failed to sync", state.throwable)
+            null -> logger.logInfo("$operationName didn't sync in time (it still runs in the background)")
+            else -> logger.logInfo("Unexpected $operationName sync state: $state")
+        }
     }
 }
 

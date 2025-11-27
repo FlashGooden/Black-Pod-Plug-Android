@@ -19,15 +19,17 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.Icon
 import androidx.compose.material.LocalRippleConfiguration
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.RippleConfiguration
-import androidx.compose.material.Text
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -40,14 +42,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import au.com.shiftyjelly.pocketcasts.compose.AppThemeWithBackground
 import au.com.shiftyjelly.pocketcasts.compose.components.HorizontalDivider
 import au.com.shiftyjelly.pocketcasts.compose.components.PlaylistArtwork
@@ -57,11 +56,18 @@ import au.com.shiftyjelly.pocketcasts.compose.components.TipPosition
 import au.com.shiftyjelly.pocketcasts.compose.components.TooltipPopup
 import au.com.shiftyjelly.pocketcasts.compose.preview.ThemePreviewParameterProvider
 import au.com.shiftyjelly.pocketcasts.compose.theme
-import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
+import au.com.shiftyjelly.pocketcasts.models.to.PlaylistIcon
+import au.com.shiftyjelly.pocketcasts.models.type.SmartRules
+import au.com.shiftyjelly.pocketcasts.repositories.playlist.ManualPlaylistPreview
+import au.com.shiftyjelly.pocketcasts.repositories.playlist.Playlist
+import au.com.shiftyjelly.pocketcasts.repositories.playlist.Playlist.Type
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.PlaylistPreview
+import au.com.shiftyjelly.pocketcasts.repositories.playlist.SmartPlaylistPreview
 import au.com.shiftyjelly.pocketcasts.ui.theme.Theme
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import au.com.shiftyjelly.pocketcasts.images.R as IR
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
@@ -69,14 +75,35 @@ import au.com.shiftyjelly.pocketcasts.localization.R as LR
 @Composable
 internal fun PlaylistPreviewRow(
     playlist: PlaylistPreview,
-    showTooltip: Boolean,
+    getArtworkUuidsFlow: (String) -> StateFlow<List<String>?>,
+    getEpisodeCountFlow: (String) -> StateFlow<Int?>,
+    refreshArtworkUuids: suspend (String) -> Unit,
+    refreshEpisodeCount: suspend (String) -> Unit,
+    showPremadeTooltip: Boolean,
+    showRearrangeTooltip: Boolean,
+    onDismissTooltip: (PlaylistTooltip) -> Unit,
     showDivider: Boolean,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
-    onClickTooltip: () -> Unit,
+    onDelete: (AnchoredDraggableState<SwipeToDeleteAnchor>) -> Unit,
     modifier: Modifier = Modifier,
     backgroundColor: Color = MaterialTheme.theme.colors.primaryUi01,
 ) {
+    val artworkUuids by remember(playlist.uuid) {
+        getArtworkUuidsFlow(playlist.uuid)
+    }.collectAsState()
+
+    val episodeCount by remember(playlist.uuid) {
+        getEpisodeCountFlow(playlist.uuid)
+    }.collectAsState()
+
+    LaunchedEffect(playlist.uuid, refreshArtworkUuids) {
+        refreshArtworkUuids(playlist.uuid)
+    }
+
+    LaunchedEffect(playlist.uuid, refreshEpisodeCount) {
+        refreshEpisodeCount(playlist.uuid)
+    }
+
     Box(
         modifier = modifier.height(IntrinsicSize.Min),
     ) {
@@ -87,12 +114,10 @@ internal fun PlaylistPreviewRow(
         }
         val density = LocalDensity.current
         val windowWidth = LocalWindowInfo.current.containerSize.width
-        val textMeasurer = rememberTextMeasurer()
-        val deleteText = stringResource(LR.string.delete)
-        val draggableAnchors = remember(windowWidth, deleteText, density, textMeasurer) {
-            val textMeasureResult = textMeasurer.measure(deleteText, style = TextStyle(fontSize = 15.sp))
-            val deleteTextPadding = density.run { 48.dp.toPx() }
-            val deleteActionWidth = textMeasureResult.size.width.toFloat() + deleteTextPadding
+        val draggableAnchors = remember(windowWidth, density) {
+            val deleteIconSize = density.run { 24.dp.toPx() }
+            val deleteIconPadding = density.run { 48.dp.toPx() }
+            val deleteActionWidth = deleteIconSize + deleteIconPadding
             val componentWidth = windowWidth.toFloat()
 
             DraggableAnchors {
@@ -102,6 +127,7 @@ internal fun PlaylistPreviewRow(
                 SwipeToDeleteAnchor.Delete at -componentWidth * 2
             }
         }
+
         SideEffect {
             draggableState.updateAnchors(draggableAnchors)
         }
@@ -109,7 +135,7 @@ internal fun PlaylistPreviewRow(
             snapshotFlow { draggableState.settledValue }.collectLatest { deleteAnchor ->
                 when (deleteAnchor) {
                     SwipeToDeleteAnchor.ShowDelete -> Unit
-                    SwipeToDeleteAnchor.Delete -> onDelete()
+                    SwipeToDeleteAnchor.Delete -> onDelete(draggableState)
                     SwipeToDeleteAnchor.Resting -> Unit
                 }
             }
@@ -125,7 +151,7 @@ internal fun PlaylistPreviewRow(
                     .fillMaxHeight()
                     .clickable(
                         role = Role.Button,
-                        onClick = onDelete,
+                        onClick = { onDelete(draggableState) },
                         enabled = draggableState.currentValue != SwipeToDeleteAnchor.Delete,
                     ),
             ) {
@@ -149,10 +175,10 @@ internal fun PlaylistPreviewRow(
                         }
                         .padding(horizontal = 24.dp),
                 ) {
-                    Text(
-                        text = deleteText,
-                        color = Color.White,
-                        fontSize = 15.sp,
+                    Icon(
+                        painter = painterResource(IR.drawable.ic_delete),
+                        tint = Color.White,
+                        contentDescription = stringResource(LR.string.delete_playlist),
                     )
                 }
             }
@@ -186,51 +212,66 @@ internal fun PlaylistPreviewRow(
             ) {
                 Box {
                     PlaylistArtwork(
-                        podcasts = playlist.podcasts,
+                        podcastUuids = artworkUuids.orEmpty(),
                         artworkSize = 56.dp,
                     )
-                    TooltipPopup(
-                        show = showTooltip,
-                        title = stringResource(LR.string.premade_playlists_tooltip_title),
-                        body = stringResource(LR.string.premade_playlists_tooltip_body),
-                        tipPosition = TipPosition.TopStart,
-                        maxWidthFraction = 0.75f,
-                        maxWidth = 400.dp,
-                        elevation = 8.dp,
-                        anchorOffset = DpOffset(x = (-8).dp, y = 4.dp),
-                        onClick = onClickTooltip,
-                    )
+                    if (showPremadeTooltip) {
+                        TooltipPopup(
+                            title = stringResource(LR.string.premade_playlists_tooltip_title),
+                            body = stringResource(LR.string.premade_playlists_tooltip_body),
+                            tipPosition = TipPosition.TopStart,
+                            maxWidthFraction = 0.75f,
+                            maxWidth = 400.dp,
+                            elevation = 8.dp,
+                            anchorOffset = DpOffset(x = (-8).dp, y = 4.dp),
+                            onClick = { onDismissTooltip(PlaylistTooltip.Premade) },
+                        )
+                    }
                 }
                 Spacer(
                     modifier = Modifier.width(16.dp),
                 )
-                Column {
+                Column(
+                    modifier = Modifier.weight(1f),
+                ) {
                     TextH40(
                         text = playlist.title,
                     )
-                    TextP50(
-                        text = stringResource(LR.string.smart_playlist),
-                        color = MaterialTheme.theme.colors.primaryText02,
-                    )
+                    if (playlist.type == Type.Smart) {
+                        TextP50(
+                            text = stringResource(LR.string.smart_playlist),
+                            color = MaterialTheme.theme.colors.primaryText02,
+                        )
+                    }
                 }
                 Spacer(
                     modifier = Modifier.width(16.dp),
                 )
-                Spacer(
-                    modifier = Modifier.weight(1f),
-                )
                 TextP50(
-                    text = "${playlist.episodeCount}",
+                    text = episodeCount?.toString().orEmpty(),
                     color = MaterialTheme.theme.colors.primaryText02,
                 )
-                Image(
-                    painter = painterResource(IR.drawable.ic_chevron_small_right),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(MaterialTheme.theme.colors.primaryText02),
-                    modifier = Modifier
-                        .padding(3.dp)
-                        .size(24.dp),
-                )
+                Box {
+                    Image(
+                        painter = painterResource(IR.drawable.ic_chevron_small_right),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(MaterialTheme.theme.colors.primaryText02),
+                        modifier = Modifier
+                            .padding(3.dp)
+                            .size(24.dp),
+                    )
+                    if (showRearrangeTooltip) {
+                        TooltipPopup(
+                            title = stringResource(LR.string.rearrange_playlists_tooltip_title),
+                            body = stringResource(LR.string.rearrange_playlists_tooltip_body),
+                            tipPosition = TipPosition.TopEnd,
+                            maxWidthFraction = 0.75f,
+                            maxWidth = 400.dp,
+                            elevation = 8.dp,
+                            onClick = { onDismissTooltip(PlaylistTooltip.Rearrange) },
+                        )
+                    }
+                }
             }
             if (showDivider) {
                 HorizontalDivider(startIndent = 16.dp)
@@ -239,7 +280,12 @@ internal fun PlaylistPreviewRow(
     }
 }
 
-private enum class SwipeToDeleteAnchor {
+internal enum class PlaylistTooltip {
+    Premade,
+    Rearrange,
+}
+
+internal enum class SwipeToDeleteAnchor {
     Resting,
     ShowDelete,
     Delete,
@@ -263,45 +309,62 @@ private fun PlaylistPreviewRowPreview(
     AppThemeWithBackground(themeType) {
         Column {
             PlaylistPreviewRow(
-                playlist = PlaylistPreview(
+                playlist = SmartPlaylistPreview(
                     uuid = "",
                     title = "New Releases",
-                    episodeCount = 0,
-                    podcasts = emptyList(),
+                    settings = Playlist.Settings.ForPreview,
+                    smartRules = SmartRules.Default,
+                    icon = PlaylistIcon(0),
                 ),
-                showTooltip = false,
+                getArtworkUuidsFlow = { MutableStateFlow(null) },
+                getEpisodeCountFlow = { MutableStateFlow(null) },
+                refreshArtworkUuids = {},
+                refreshEpisodeCount = {},
+                showPremadeTooltip = false,
+                showRearrangeTooltip = false,
+                onDismissTooltip = {},
                 showDivider = true,
                 onClick = {},
                 onDelete = {},
-                onClickTooltip = {},
                 modifier = Modifier.fillMaxWidth(),
             )
             PlaylistPreviewRow(
-                playlist = PlaylistPreview(
+                playlist = ManualPlaylistPreview(
                     uuid = "",
                     title = "In progress",
-                    episodeCount = 1,
-                    podcasts = List(1) { Podcast(uuid = "$it") },
+                    settings = Playlist.Settings.ForPreview,
+                    icon = PlaylistIcon(0),
                 ),
-                showTooltip = false,
+                getArtworkUuidsFlow = { MutableStateFlow(listOf("id-1")) },
+                getEpisodeCountFlow = { MutableStateFlow(1) },
+                refreshArtworkUuids = {},
+                refreshEpisodeCount = {},
+                showPremadeTooltip = false,
+                showRearrangeTooltip = false,
+                onDismissTooltip = {},
                 showDivider = true,
                 onClick = {},
                 onDelete = {},
-                onClickTooltip = {},
                 modifier = Modifier.fillMaxWidth(),
             )
             PlaylistPreviewRow(
-                playlist = PlaylistPreview(
+                playlist = SmartPlaylistPreview(
                     uuid = "",
                     title = "Starred",
-                    episodeCount = 328,
-                    podcasts = List(4) { Podcast(uuid = "$it") },
+                    settings = Playlist.Settings.ForPreview,
+                    smartRules = SmartRules.Default,
+                    icon = PlaylistIcon(0),
                 ),
-                showTooltip = false,
+                getArtworkUuidsFlow = { MutableStateFlow(List(4) { "id-$it" }) },
+                getEpisodeCountFlow = { MutableStateFlow(null) },
+                refreshArtworkUuids = {},
+                refreshEpisodeCount = {},
+                showPremadeTooltip = false,
+                showRearrangeTooltip = false,
+                onDismissTooltip = {},
                 showDivider = false,
                 onClick = {},
                 onDelete = {},
-                onClickTooltip = {},
                 modifier = Modifier.fillMaxWidth(),
             )
         }

@@ -1,11 +1,9 @@
 package au.com.shiftyjelly.pocketcasts.repositories.podcast
 
-import android.content.Context
 import au.com.shiftyjelly.pocketcasts.models.db.AppDatabase
 import au.com.shiftyjelly.pocketcasts.models.db.dao.SmartPlaylistDao
-import au.com.shiftyjelly.pocketcasts.models.entity.SmartPlaylist
+import au.com.shiftyjelly.pocketcasts.models.entity.PlaylistEntity
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
-import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadManager
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationManager
 import au.com.shiftyjelly.pocketcasts.repositories.notification.OnboardingNotificationType
 import au.com.shiftyjelly.pocketcasts.repositories.sync.SyncManager
@@ -26,11 +24,9 @@ class SmartPlaylistManagerImplTest {
     private val dispatcher = StandardTestDispatcher()
 
     private val settings: Settings = mock()
-    private val downloadManager: DownloadManager = mock()
     private val playlistUpdateAnalytics: PlaylistUpdateAnalytics = mock()
     private val syncManager: SyncManager = mock()
     private val notificationManager: NotificationManager = mock()
-    private val context: Context = mock()
     private val appDatabase: AppDatabase = mock()
     private val smartPlaylistDao: SmartPlaylistDao = mock()
 
@@ -39,7 +35,7 @@ class SmartPlaylistManagerImplTest {
         val playlistManager = initManager()
 
         playlistManager.updateBlocking(
-            smartPlaylist = SmartPlaylist(),
+            playlist = PlaylistEntity(),
             userPlaylistUpdate = UserPlaylistUpdate(listOf(PlaylistProperty.Color), PlaylistUpdateSource.AUTO_DOWNLOAD_SETTINGS),
             isCreatingFilter = true,
         )
@@ -54,7 +50,7 @@ class SmartPlaylistManagerImplTest {
         val playlistManager = initManager()
 
         playlistManager.updateBlocking(
-            smartPlaylist = SmartPlaylist(),
+            playlist = PlaylistEntity(),
             userPlaylistUpdate = UserPlaylistUpdate(listOf(PlaylistProperty.Color), PlaylistUpdateSource.AUTO_DOWNLOAD_SETTINGS),
             isCreatingFilter = false,
         )
@@ -71,13 +67,10 @@ class SmartPlaylistManagerImplTest {
 
         return SmartPlaylistManagerImpl(
             settings = settings,
-            downloadManager = downloadManager,
             playlistUpdateAnalytics = playlistUpdateAnalytics,
             syncManager = syncManager,
             notificationManager = notificationManager,
-            context = context,
             appDatabase = appDatabase,
-            playlistsInitializater = mock(),
             scope = CoroutineScope(dispatcher),
         )
     }

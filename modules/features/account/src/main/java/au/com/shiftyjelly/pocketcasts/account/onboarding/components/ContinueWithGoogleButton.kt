@@ -1,20 +1,21 @@
 package au.com.shiftyjelly.pocketcasts.account.onboarding.components
 
 import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import au.com.shiftyjelly.pocketcasts.account.viewmodel.GoogleSignInButtonViewModel
 import au.com.shiftyjelly.pocketcasts.account.viewmodel.GoogleSignInState
+import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
 import au.com.shiftyjelly.pocketcasts.compose.buttons.RowOutlinedButton
 import au.com.shiftyjelly.pocketcasts.compose.theme
 import au.com.shiftyjelly.pocketcasts.models.type.Subscription
@@ -34,25 +35,28 @@ fun ContinueWithGoogleButton(
     fontSize: TextUnit? = null,
     includePadding: Boolean = true,
     viewModel: GoogleSignInButtonViewModel = hiltViewModel(),
+    event: AnalyticsEvent = AnalyticsEvent.SETUP_ACCOUNT_BUTTON_TAPPED,
     label: String = stringResource(LR.string.onboarding_continue_with_google),
 ) {
-    val context = LocalContext.current
+    val activity = checkNotNull(LocalActivity.current)
 
-    val showContinueWithGoogleButton = GoogleSignInButtonViewModel.showContinueWithGoogleButton(context)
+    val showContinueWithGoogleButton = GoogleSignInButtonViewModel.showContinueWithGoogleButton(activity)
     if (!showContinueWithGoogleButton) return
 
-    val errorMessage = if (!Network.isConnected(context)) {
+    val errorMessage = if (!Network.isConnected(activity)) {
         stringResource(LR.string.log_in_no_network)
     } else {
         stringResource(LR.string.onboarding_continue_with_google_error)
     }
 
     val showError = {
-        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+        Toast.makeText(activity, errorMessage, Toast.LENGTH_LONG).show()
     }
 
     // request legacy Google Sign-In and process the result
-    val googleLegacySignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+    val googleLegacySignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
         viewModel.onGoogleLegacySignInResult(
             result = result,
             onSuccess = onComplete,
@@ -60,29 +64,14 @@ fun ContinueWithGoogleButton(
         )
     }
 
-    // request Google One Tap Sign-In and process the result
-    val googleOneTapSignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        viewModel.onGoogleOneTapSignInResult(
-            result = result,
-            onSuccess = onComplete,
-            onError = {
-                viewModel.startGoogleLegacySignIn(
-                    onSuccess = { request -> googleLegacySignInLauncher.launch(request) },
-                    onError = showError,
-                )
-            },
-        )
-    }
-
     val onSignInClick = {
         viewModel.startGoogleOneTapSignIn(
             flow = flow,
-            onSuccess = { request -> googleOneTapSignInLauncher.launch(request) },
-            onError = {
-                viewModel.startGoogleLegacySignIn(
-                    onSuccess = { request -> googleLegacySignInLauncher.launch(request) },
-                    onError = showError,
-                )
+            onSuccess = onComplete,
+            onError = showError,
+            activity = activity,
+            onLegacySignInIntent = {
+                googleLegacySignInLauncher.launch(it)
             },
         )
     }

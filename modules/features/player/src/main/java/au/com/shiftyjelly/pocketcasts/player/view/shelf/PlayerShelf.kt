@@ -140,6 +140,14 @@ fun PlayerShelf(
         onMoreClick = {
             shelfSharedViewModel.onMoreClick()
         },
+        onAddToPlaylistClick = {
+            val episode = playerViewModel.episode ?: return@PlayerShelfContent
+            shelfSharedViewModel.onAddToPlaylistClick(
+                episodeUuid = episode.uuid,
+                podcastUuid = episode.podcastOrSubstituteUuid,
+                source = ShelfItemSource.Shelf,
+            )
+        },
         modifier = modifier,
     )
 }
@@ -160,6 +168,7 @@ private fun PlayerShelfContent(
     onDownloadClick: () -> Unit,
     onAddBookmarkClick: () -> Unit,
     onTranscriptClick: (Boolean) -> Unit,
+    onAddToPlaylistClick: () -> Unit,
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
     playerColors: PlayerColors = MaterialTheme.theme.rememberPlayerColorsOrDefault(),
@@ -237,6 +246,11 @@ private fun PlayerShelfContent(
                     isUserEpisode = playerShelfData.isUserEpisode,
                     playerColors = playerColors,
                     onClick = onArchiveClick,
+                )
+
+                ShelfItem.AddToPlaylist -> AddToPlaylistButton(
+                    playerColors = playerColors,
+                    onClick = onAddToPlaylistClick,
                 )
             }
         }
@@ -391,6 +405,20 @@ private fun ArchiveButton(
 }
 
 @Composable
+private fun AddToPlaylistButton(
+    playerColors: PlayerColors,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick) {
+        Icon(
+            painterResource(id = IR.drawable.ic_add_to_playlist_action),
+            contentDescription = stringResource(LR.string.add_to_playlist_description),
+            tint = playerColors.contrast03,
+        )
+    }
+}
+
+@Composable
 private fun BookmarkButton(
     playerColors: PlayerColors,
     onClick: () -> Unit,
@@ -482,6 +510,7 @@ private fun PlayerShelfPreview(
             onDownloadClick = {},
             onAddBookmarkClick = {},
             onTranscriptClick = {},
+            onAddToPlaylistClick = {},
             onMoreClick = {},
         )
     }

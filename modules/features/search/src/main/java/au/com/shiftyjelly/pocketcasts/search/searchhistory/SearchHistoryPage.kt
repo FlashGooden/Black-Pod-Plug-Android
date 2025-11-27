@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -14,7 +15,6 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -31,9 +31,10 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import au.com.shiftyjelly.pocketcasts.compose.AppTheme
+import au.com.shiftyjelly.pocketcasts.compose.CallOnce
 import au.com.shiftyjelly.pocketcasts.compose.bars.NavigationButton
 import au.com.shiftyjelly.pocketcasts.compose.components.HorizontalDivider
-import au.com.shiftyjelly.pocketcasts.compose.components.PodcastImage
+import au.com.shiftyjelly.pocketcasts.compose.components.PodcastImageDeprecated
 import au.com.shiftyjelly.pocketcasts.compose.components.TextH20
 import au.com.shiftyjelly.pocketcasts.compose.components.TextH40
 import au.com.shiftyjelly.pocketcasts.compose.components.TextH50
@@ -58,8 +59,13 @@ internal fun SearchHistoryPage(
     onShowClearAllConfirmation: () -> Unit,
     onScroll: () -> Unit,
 ) {
+    CallOnce {
+        viewModel.start()
+    }
+
     val state by viewModel.state.collectAsState()
     SearchHistoryView(
+        modifier = Modifier.fillMaxSize(),
         state = state,
         onCloseClick = { viewModel.remove(it) },
         onClearAllClick = {
@@ -72,9 +78,6 @@ internal fun SearchHistoryPage(
         onRowClick = onClick,
         onScroll = onScroll,
     )
-    LaunchedEffect(Unit) {
-        viewModel.start()
-    }
 }
 
 @Composable
@@ -211,7 +214,8 @@ fun SearchHistoryEpisodeView(
                 .fillMaxWidth()
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
         ) {
-            PodcastImage(
+            @Suppress("DEPRECATION")
+            PodcastImageDeprecated(
                 uuid = entry.podcastUuid,
                 modifier = Modifier.size(IconSize),
             )
@@ -262,8 +266,7 @@ fun SearchHistoryFolderView(
             FolderImageSmall(
                 color = color,
                 podcastUuids = entry.podcastIds,
-                folderImageSize = IconSize,
-                podcastImageSize = 20.dp,
+                size = IconSize,
             )
             Column(
                 modifier = Modifier
@@ -309,7 +312,8 @@ fun SearchHistoryPodcastView(
                 .fillMaxWidth()
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
         ) {
-            PodcastImage(
+            @Suppress("DEPRECATION")
+            PodcastImageDeprecated(
                 uuid = entry.uuid,
                 modifier = Modifier
                     .size(IconSize),

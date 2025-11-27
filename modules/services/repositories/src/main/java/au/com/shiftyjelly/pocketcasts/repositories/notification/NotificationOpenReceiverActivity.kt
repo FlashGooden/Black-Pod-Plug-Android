@@ -82,6 +82,7 @@ class NotificationOpenReceiverActivity : AppCompatActivity() {
         private fun Intent.copyCommonIntentProps(source: Intent, category: String): Intent {
             flags = source.flags
             action = source.action
+            data = source.data
             putExtras(source)
             source.component?.let {
                 putExtra(EXTRA_ORIGINAL_COMPONENT, it)
@@ -98,10 +99,12 @@ class NotificationOpenReceiverActivity : AppCompatActivity() {
             }
 
             null -> null
+
             else -> {
                 Intent().apply {
                     flags = intent.flags
                     action = intent.action
+                    data = intent.data
                     IntentCompat.getParcelableExtra(intent, EXTRA_ORIGINAL_COMPONENT, ComponentName::class.java)?.let {
                         component = it
                     }

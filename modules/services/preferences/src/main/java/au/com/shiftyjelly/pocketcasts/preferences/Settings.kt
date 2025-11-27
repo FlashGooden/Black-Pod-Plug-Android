@@ -9,9 +9,11 @@ import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.models.to.PodcastGrouping
 import au.com.shiftyjelly.pocketcasts.models.to.RefreshState
 import au.com.shiftyjelly.pocketcasts.models.type.AutoDownloadLimitSetting
+import au.com.shiftyjelly.pocketcasts.models.type.Membership
 import au.com.shiftyjelly.pocketcasts.models.type.PodcastsSortType
 import au.com.shiftyjelly.pocketcasts.models.type.Subscription
 import au.com.shiftyjelly.pocketcasts.preferences.model.AppIconSetting
+import au.com.shiftyjelly.pocketcasts.preferences.model.AppReviewReason
 import au.com.shiftyjelly.pocketcasts.preferences.model.ArtworkConfiguration
 import au.com.shiftyjelly.pocketcasts.preferences.model.AutoAddUpNextLimitBehaviour
 import au.com.shiftyjelly.pocketcasts.preferences.model.AutoPlaySource
@@ -45,6 +47,7 @@ interface Settings {
         const val SERVER_SHORT_URL = BuildConfig.SERVER_SHORT_URL
         const val SERVER_LIST_URL = BuildConfig.SERVER_LIST_URL
         const val SERVER_LIST_HOST = BuildConfig.SERVER_LIST_HOST
+        const val SEARCH_API_URL = BuildConfig.SEARCH_API_URL
         const val WP_COM_API_URL = "https://public-api.wordpress.com"
 
         const val SHARING_SERVER_SECRET = BuildConfig.SHARING_SERVER_SECRET
@@ -270,6 +273,9 @@ interface Settings {
         )
     }
 
+    val currentSessionId: String
+    val sessionIds: List<String>
+
     val selectPodcastSortTypeObservable: Observable<PodcastsSortType>
     val multiSelectItemsObservable: Observable<List<String>>
     val refreshStateFlow: StateFlow<RefreshState>
@@ -428,7 +434,6 @@ interface Settings {
     fun getSlumberStudiosPromoCode(): String
     fun getSleepTimerDeviceShakeThreshold(): Long
     fun getRefreshPodcastsBatchSize(): Long
-    fun getExoPlayerCacheSizeInMB(): Long
     fun getExoPlayerCacheEntirePlayingEpisodeSizeInMB(): Long
     fun getPlaybackEpisodePositionChangedOnSyncThresholdSecs(): Long
 
@@ -445,7 +450,8 @@ interface Settings {
     val cloudAutoUpload: UserSetting<Boolean>
     val cloudAutoDownload: UserSetting<Boolean>
     val cloudDownloadOnlyOnWifi: UserSetting<Boolean>
-    val cachedSubscription: UserSetting<Subscription?>
+    val cachedMembership: UserSetting<Membership>
+    val cachedSubscription: ReadSetting<Subscription?>
 
     val upgradeProfileClosed: UserSetting<Boolean>
     fun getUpgradeClosedAddFile(): Boolean
@@ -481,8 +487,6 @@ interface Settings {
     val autoAddUpNextLimitBehaviour: UserSetting<AutoAddUpNextLimitBehaviour>
     fun getMaxUpNextEpisodes(): Int
     fun getUniqueDeviceId(): String
-    fun setHomeGridNeedsRefresh(value: Boolean)
-    fun getHomeGridNeedsRefresh(): Boolean
 
     fun setTimesToShowBatteryWarning(value: Int)
     fun getTimesToShowBatteryWarning(): Int
@@ -490,12 +494,11 @@ interface Settings {
     // Only the AnalyticsTracker object should update SendUsageState directly. Everything else
     // should update this setting through the AnalyticsTracker.
     val collectAnalytics: UserSetting<Boolean>
-    val collectAnalyticsThirdParty: UserSetting<Boolean>
     val sendCrashReports: UserSetting<Boolean>
     val linkCrashReportsToUser: UserSetting<Boolean>
 
-    fun setEndOfYearShowBadge2023(value: Boolean)
-    fun getEndOfYearShowBadge2023(): Boolean
+    fun setEndOfYearShowBadge2025(value: Boolean)
+    fun getEndOfYearShowBadge2025(): Boolean
 
     fun setEndOfYearShowModal(value: Boolean)
     fun getEndOfYearShowModal(): Boolean
@@ -577,13 +580,12 @@ interface Settings {
 
     val showPodcastsRecentlyPlayedSortOrderTooltip: UserSetting<Boolean>
 
-    val showEmptyFiltersListTooltip: UserSetting<Boolean>
+    val showPremadePlaylistsTooltip: UserSetting<Boolean>
+    val showRearrangePlaylistsTooltip: UserSetting<Boolean>
 
     val suggestedFoldersDismissTimestamp: UserSetting<Instant?>
     val suggestedFoldersDismissCount: UserSetting<Int>
     val suggestedFoldersFollowedHash: UserSetting<String>
-
-    val isTrackingConsentRequired: UserSetting<Boolean>
 
     val isFreeAccountProfileBannerDismissed: UserSetting<Boolean>
     val isFreeAccountFiltersBannerDismissed: UserSetting<Boolean>
@@ -591,4 +593,23 @@ interface Settings {
     val showFreeAccountEncouragement: UserSetting<Boolean>
 
     val showPlaylistsOnboarding: UserSetting<Boolean>
+    val saveUpNextAsPlaylist: UserSetting<Boolean>
+
+    // App review prompt policy settings
+    val appReviewEpisodeCompletedTimestamps: ReadWriteSetting<List<Instant>>
+    val appReviewEpisodeStarredTimestamp: ReadWriteSetting<Instant?>
+    val appReviewPodcastRatedTimestamp: ReadWriteSetting<Instant?>
+    val appReviewPlaylistCreatedTimestamp: ReadWriteSetting<Instant?>
+    val appReviewPlusUpgradedTimestamp: ReadWriteSetting<Instant?>
+    val appReviewFolderCreatedTimestamp: ReadWriteSetting<Instant?>
+    val appReviewBookmarkCreatedTimestamp: ReadWriteSetting<Instant?>
+    val appReviewThemeChangedTimestamp: ReadWriteSetting<Instant?>
+    val appReviewReferralSharedTimestamp: ReadWriteSetting<Instant?>
+    val appReviewPlaybackSharedTimestamp: ReadWriteSetting<Instant?>
+    val appReviewSubmittedReasons: ReadWriteSetting<List<AppReviewReason>>
+    val appReviewLastPromptTimestamp: ReadWriteSetting<Instant?>
+    val appReviewLastDeclineTimestamps: ReadWriteSetting<List<Instant>>
+    val appReviewCrashTimestamp: ReadWriteSetting<Instant?>
+    val appReviewErrorSessionIds: ReadSetting<List<String>>
+    fun recordErrorSession()
 }

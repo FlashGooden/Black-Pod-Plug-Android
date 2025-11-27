@@ -29,11 +29,11 @@ import timber.log.Timber
 class WearMainActivityViewModel @Inject constructor(
     private val playbackManager: PlaybackManager,
     private val podcastManager: PodcastManager,
-    tokenBundleRepository: TokenBundleRepository<WatchSyncAuthData?>,
     private val userManager: UserManager,
     private val settings: Settings,
-    watchSync: WatchSync,
     @ApplicationContext private val context: Context,
+    private val tokenBundleRepository: TokenBundleRepository<WatchSyncAuthData?>,
+    private val watchSync: WatchSync,
 ) : ViewModel() {
 
     data class State(
@@ -67,6 +67,7 @@ class WearMainActivityViewModel @Inject constructor(
     private fun onLoginFromPhoneResult(loginResult: LoginResult) {
         when (loginResult) {
             is LoginResult.Failed -> { /* do nothing */ }
+
             is LoginResult.Success -> {
                 viewModelScope.launch {
                     podcastManager.refreshPodcastsAfterSignIn()

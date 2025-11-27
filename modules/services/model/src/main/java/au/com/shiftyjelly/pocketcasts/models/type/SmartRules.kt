@@ -79,7 +79,9 @@ data class SmartRules(
         override fun toSqlWhereClause(clock: Clock) = buildString {
             val statuses = when (this@DownloadStatusRule) {
                 Any -> return@buildString
+
                 Downloaded -> listOf(EpisodeStatusEnum.DOWNLOADED)
+
                 NotDownloaded -> listOf(
                     EpisodeStatusEnum.DOWNLOADING,
                     EpisodeStatusEnum.QUEUED,
@@ -188,8 +190,12 @@ data class SmartRules(
         }
 
         data class Selected(
-            val uuids: List<String>,
+            val uuids: Set<String>,
         ) : PodcastsRule {
+            fun withPodcast(podcastUuid: String) = copy(uuids + podcastUuid)
+
+            fun withoutPodcast(podcastUuid: String) = copy(uuids - podcastUuid)
+
             override fun toSqlWhereClause(clock: Clock) = buildString {
                 append("episode.podcast_id IN (")
                 append(uuids.joinToString(separator = ",") { uuid -> "'$uuid'" })

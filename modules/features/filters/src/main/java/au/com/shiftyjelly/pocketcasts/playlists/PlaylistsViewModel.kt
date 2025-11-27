@@ -4,16 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTracker
+import au.com.shiftyjelly.pocketcasts.playlists.component.PlaylistTooltip
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.Playlist
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.PlaylistManager
 import au.com.shiftyjelly.pocketcasts.repositories.playlist.PlaylistPreview
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
-import au.com.shiftyjelly.pocketcasts.utils.featureflag.Feature
-import au.com.shiftyjelly.pocketcasts.utils.featureflag.FeatureFlag
+import au.com.shiftyjelly.pocketcasts.utils.extensions.combine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -30,38 +33,61 @@ class PlaylistsViewModel @Inject constructor(
     private val showFreeAccountBanner = combine(
         settings.isFreeAccountFiltersBannerDismissed.flow,
         userManager.getSignInState().asFlow().map { it.isSignedOut },
-        FeatureFlag.isEnabledFlow(Feature.ENCOURAGE_ACCOUNT_CREATION),
-    ) { isBannerDismissed, isSignedOut, isFeatureEnabled ->
-        isSignedOut && !isBannerDismissed && isFeatureEnabled
+    ) { isBannerDismissed, isSignedOut ->
+        isSignedOut && !isBannerDismissed
     }
 
     internal val uiState = combine(
-        playlistManager.observePlaylistsPreview(),
+        playlistManager.playlistPreviewsFlow(),
         settings.showPlaylistsOnboarding.flow,
         showFreeAccountBanner,
-        settings.showEmptyFiltersListTooltip.flow,
+        settings.showPremadePlaylistsTooltip.flow,
+        settings.showRearrangePlaylistsTooltip.flow,
         settings.bottomInset,
-    ) { playlists, showOnboarding, showFreeAccountBanner, showTooltip, bottomInset ->
+    ) { playlists, showOnboarding, showFreeAccountBanner, showPremadeTooltip, showRearrangeTooltip, bottomInset ->
         UiState(
             playlists = PlaylistsState.Loaded(playlists),
             showOnboarding = showOnboarding,
             showFreeAccountBanner = showFreeAccountBanner,
-            showPremadePlaylistsTooltip = shouldShowPremadePlaylistsTooltip(showTooltip, playlists),
+            displayedTooltips = buildList {
+                if (shouldShowPremadePlaylistsTooltip(showPremadeTooltip, playlists)) {
+                    add(PlaylistTooltip.Premade)
+                }
+                if (shouldShowRearrangePlaylistsTooltip(showRearrangeTooltip, playlists)) {
+                    add(PlaylistTooltip.Rearrange)
+                }
+            },
             miniPlayerInset = bottomInset,
         )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState.Empty)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(stopTimeout = 300.milliseconds), UiState.Empty)
 
-    fun deletePlaylist(uuid: String) {
+    fun getArtworkUuidsFlow(playlistUuid: String): StateFlow<List<String>?> {
+        return playlistManager.getArtworkUuidsFlow(playlistUuid)
+    }
+
+    fun getEpisodeCountFlow(playlistUuid: String): StateFlow<Int?> {
+        return playlistManager.getEpisodeCountFlow(playlistUuid)
+    }
+
+    suspend fun refreshArtworkUuids(playlistUuid: String) {
+        playlistManager.refreshArtworkUuids(playlistUuid)
+    }
+
+    suspend fun refreshEpisodeCount(playlistUuid: String) {
+        playlistManager.refreshEpisodeCount(playlistUuid)
+    }
+
+    fun deletePlaylist(playlist: PlaylistPreview) {
         viewModelScope.launch {
-            playlistManager.deletePlaylist(uuid)
-            trackPlaylistDeleted()
+            playlistManager.deletePlaylist(playlist.uuid)
+            trackPlaylistDeleted(playlist)
         }
     }
 
     fun updatePlaylistsOrder(playlistUuids: List<String>) {
         viewModelScope.launch {
-            playlistManager.updatePlaylistsOrder(playlistUuids)
-            trackPlaylistsReodered()
+            playlistManager.sortPlaylists(playlistUuids)
+            trackPlaylistsReordered()
         }
     }
 
@@ -70,21 +96,47 @@ class PlaylistsViewModel @Inject constructor(
         settings.isFreeAccountFiltersBannerDismissed.set(true, updateModifiedAt = true)
     }
 
-    fun dismissPremadePlaylistsTooltip() {
-        trackTooltipDismissed()
-        settings.showEmptyFiltersListTooltip.set(false, updateModifiedAt = false)
+    internal fun dismissTooltip(tooltip: PlaylistTooltip) {
+        when (tooltip) {
+            PlaylistTooltip.Premade -> {
+                // We track this only due to legacy reasons
+                trackTooltipDismissed()
+                settings.showPremadePlaylistsTooltip.set(false, updateModifiedAt = false)
+            }
+
+            PlaylistTooltip.Rearrange -> {
+                settings.showRearrangePlaylistsTooltip.set(false, updateModifiedAt = false)
+            }
+        }
     }
 
     fun trackPlaylistsShown(playlistCount: Int) {
         analyticsTracker.track(AnalyticsEvent.FILTER_LIST_SHOWN, mapOf("filter_count" to playlistCount))
     }
 
-    fun trackPlaylistsReodered() {
+    fun trackPlaylistsReordered() {
         analyticsTracker.track(AnalyticsEvent.FILTER_LIST_REORDERED)
     }
 
-    fun trackPlaylistDeleted() {
-        analyticsTracker.track(AnalyticsEvent.FILTER_DELETED)
+    fun trackPlaylistDeleteTriggered(playlist: PlaylistPreview) {
+        analyticsTracker.track(
+            AnalyticsEvent.FILTER_DELETE_TRIGGERED,
+            mapOf("filter_type" to playlist.type.analyticsValue),
+        )
+    }
+
+    fun trackPlaylistDeleteDismissed(playlist: PlaylistPreview) {
+        analyticsTracker.track(
+            AnalyticsEvent.FILTER_DELETE_DISMISSED,
+            mapOf("filter_type" to playlist.type.analyticsValue),
+        )
+    }
+
+    fun trackPlaylistDeleted(playlist: PlaylistPreview) {
+        analyticsTracker.track(
+            AnalyticsEvent.FILTER_DELETED,
+            mapOf("filter_type" to playlist.type.analyticsValue),
+        )
     }
 
     fun trackCreatePlaylistClicked() {
@@ -114,24 +166,30 @@ class PlaylistsViewModel @Inject constructor(
         playlists.size == PremadePlaylistUuids.size &&
         playlists.all { playlist -> playlist.uuid in PremadePlaylistUuids }
 
+    private fun shouldShowRearrangePlaylistsTooltip(
+        tooltipFlag: Boolean,
+        playlists: List<PlaylistPreview>,
+    ) = tooltipFlag && playlists.size > 1
+
     internal data class UiState(
         val playlists: PlaylistsState,
         val showOnboarding: Boolean,
         val showFreeAccountBanner: Boolean,
-        val showPremadePlaylistsTooltip: Boolean,
+        val displayedTooltips: List<PlaylistTooltip>,
         val miniPlayerInset: Int,
     ) {
-        val showEmptyState get() = when (playlists) {
-            is PlaylistsState.Loading -> false
-            is PlaylistsState.Loaded -> playlists.value.isEmpty()
-        }
+        val showEmptyState
+            get() = when (playlists) {
+                is PlaylistsState.Loading -> false
+                is PlaylistsState.Loaded -> playlists.value.isEmpty()
+            }
 
         companion object {
             val Empty = UiState(
                 playlists = PlaylistsState.Loading,
                 showOnboarding = false,
                 showFreeAccountBanner = false,
-                showPremadePlaylistsTooltip = false,
+                displayedTooltips = emptyList(),
                 miniPlayerInset = 0,
             )
         }

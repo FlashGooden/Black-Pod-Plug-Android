@@ -39,7 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import au.com.shiftyjelly.pocketcasts.compose.AppTheme
@@ -122,6 +122,7 @@ fun ReferralsClaimGuestPassPage(
                     NavigationEvent.Close -> {
                         onDismiss()
                     }
+
                     NavigationEvent.Welcome -> openOnboardingFlow(
                         activity = requireNotNull(activity),
                         onboardingFlow = OnboardingFlow.Welcome,
@@ -276,6 +277,7 @@ private fun ClaimGuestPassContent(
             padding = 4.dp,
             iconRes = IR.drawable.ic_plus,
             shortNameRes = LR.string.pocket_casts_plus_short,
+            contentDescriptionRes = LR.string.pocket_casts_plus_badge,
             iconColor = Color.Black,
             backgroundBrush = plusBackgroundBrush,
             textColor = Color.Black,

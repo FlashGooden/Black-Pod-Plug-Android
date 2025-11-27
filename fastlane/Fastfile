@@ -80,6 +80,12 @@ UPLOAD_TO_PLAY_STORE_COMMON_OPTIONS = {
   json_key: UPLOAD_TO_PLAY_STORE_JSON_KEY
 }.freeze
 
+########################################################################
+# Firebase App Distribution (FAD)
+########################################################################
+FIREBASE_APP_ID = '1:124902176124:android:ad0ff1c7193b55ee1620f9'
+FIREBASE_TESTERS_GROUP = 'pocketcasts-android---prototype-builds'
+
 before_all do |_lane|
   # Ensure we use the latest version of the toolkit
   check_for_toolkit_updates unless is_ci || ENV['FASTLANE_SKIP_TOOLKIT_UPDATE_CHECK']
@@ -92,18 +98,29 @@ before_all do |_lane|
 end
 
 platform :android do
-  # @param skip_confirm [Boolean] If true, avoids any interactive prompt
+  # Executes the code freeze steps, creating a new release branch and triggering the first beta build
   #
-  lane :code_freeze do |skip_confirm: false|
+  # @param [String] version (optional) The version to use for the new release version to code freeze for.
+  #                 Typically auto-provided by ReleasesV2. If nil, computes the new version based on current one.
+  # @param [Boolean] skip_confirm If true, avoids any interactive prompt
+  #
+  lane :code_freeze do |version: nil, skip_confirm: false|
     ensure_git_status_clean
     Fastlane::Helper::GitHelper.checkout_and_pull(DEFAULT_BRANCH)
+
+    # If a new version is passed, use it as source of truth from now on
+    new_version = version || release_version_next
+    release_branch_name = "release/#{new_version}"
+    new_beta_version = beta_version_next(version_name: new_version)
+    new_build_code = build_code_next
 
     confirmation_message = <<-MESSAGE
 
       Code Freeze:
-      • New release branch from #{DEFAULT_BRANCH}: release/#{release_version_next}
+      • New release branch from #{DEFAULT_BRANCH}: #{release_branch_name}
+
       • Current release version and build code: #{release_version_current} (#{build_code_current}).
-      • New release version and build code: #{beta_version_code_freeze} (#{build_code_next}).
+      • New release version and build code: #{new_beta_version} (#{new_build_code}).
 
     MESSAGE
 
@@ -111,21 +128,20 @@ platform :android do
     UI.user_error!("Terminating as requested. Don't forget to run the remainder of this automation manually.") unless skip_confirm || UI.confirm('Do you want to continue?')
 
     # Create the release branch
+    ensure_branch_does_not_exist!(release_branch_name)
+
     UI.message('Creating release branch...')
-    release_branch_name = "release/#{release_version_next}"
     Fastlane::Helper::GitHelper.create_branch(release_branch_name, from: DEFAULT_BRANCH)
     UI.success("Done! New release branch is: #{git_branch}")
 
     # Bump the version and build code
     UI.message('Bumping beta version and build code...')
     VERSION_FILE.write_version(
-      version_name: beta_version_code_freeze,
-      version_code: build_code_next
+      version_name: new_beta_version,
+      version_code: new_build_code
     )
     commit_version_bump
     UI.success("Done! New Beta Version: #{beta_version_current}. New Build Code: #{build_code_current}")
-
-    new_version = release_version_current
 
     extract_release_notes_for_version(
       version: new_version,
@@ -239,17 +255,31 @@ platform :android do
 
     # Parse the provided version into an AppVersion object
     parsed_version = VERSION_FORMATTER.parse(new_version)
+    # Validate that this is a hotfix version (must have a patch component > 0)
+    UI.user_error!("Invalid hotfix version '#{new_version}'. Must include a patch number.") unless parsed_version.patch.to_i.positive?
     previous_version = VERSION_FORMATTER.release_version(VERSION_CALCULATOR.previous_patch_version(version: parsed_version))
+
+    release_branch_name = "release/#{new_version}"
+    previous_release_branch = "release/#{previous_version}"
+
+    # Determine the base for the hotfix branch: either a tag or a release branch
+    base_ref_for_hotfix = if git_tag_exists(tag: previous_version, remote: true)
+                            previous_version
+                          elsif Fastlane::Helper::GitHelper.branch_exists_on_remote?(branch_name: previous_release_branch)
+                            UI.message("ℹ️  Tag '#{previous_version}' not found on the remote. Using release branch '#{previous_release_branch}' as the base for hotfix instead.")
+                            previous_release_branch
+                          else
+                            UI.user_error!("Neither tag '#{previous_version}' nor branch '#{previous_release_branch}' exists on the remote! A hotfix branch cannot be created.")
+                          end
 
     # Check versions
     message = <<-MESSAGE
+      New hotfix branch from #{base_ref_for_hotfix}: #{release_branch_name}
 
       New hotfix version: #{new_version}
 
       Current build code: #{build_code_current}
       New build code: #{new_version_code}
-
-      Branching from tag: #{previous_version}
 
     MESSAGE
 
@@ -257,13 +287,17 @@ platform :android do
     UI.user_error!("Terminating as requested. Don't forget to run the remainder of this automation manually.") unless skip_confirm || UI.confirm('Do you want to continue?')
 
     # Check tags
-    UI.user_error!("The version `#{new_version}` tag already exists!") if git_tag_exists(tag: new_version)
-    UI.user_error!("Version #{previous_version} is not tagged! A hotfix branch cannot be created.") unless git_tag_exists(tag: previous_version)
+    UI.user_error!("Version '#{new_version}' already exists on the remote! Abort!") if git_tag_exists(tag: new_version, remote: true)
+
+    # Fetch the base ref to ensure it's available locally
+    sh('git', 'fetch', 'origin', base_ref_for_hotfix)
+
+    ensure_branch_does_not_exist!(release_branch_name)
 
     # Create the hotfix branch
-    UI.message('Creating hotfix branch...')
-    Fastlane::Helper::GitHelper.create_branch("release/#{new_version}", from: previous_version)
-    UI.success("Done! New hotfix branch is: #{git_branch}")
+    UI.message("Creating hotfix branch from '#{base_ref_for_hotfix}'...")
+    Fastlane::Helper::GitHelper.create_branch(release_branch_name, from: base_ref_for_hotfix)
+    UI.success("Done! New hotfix branch is: '#{git_branch}'")
 
     # Bump the hotfix version and build code and write it to the `version.properties` file
     UI.message('Bumping hotfix version and build code...')
@@ -273,7 +307,7 @@ platform :android do
     )
     commit_version_bump
     push_to_git_remote(set_upstream: true, tags: false)
-    UI.success("Done! New Release Version: #{release_version_current}. New Build Code: #{build_code_current}")
+    UI.success("Done! New Release Version: '#{release_version_current}'. New Build Code: '#{build_code_current}'")
   end
 
   # @param skip_confirm [Boolean] If true, avoids any interactive prompt
@@ -420,27 +454,29 @@ platform :android do
     create_backmerge_pr
   end
 
-  # This lane publishes a release on GitHub and creates a PR to backmerge the current release branch into the next release/ branch
+  # This lane publishes a release on GitHub. If `track` is `production`, it will also delete the release branch.
   #
   # @param [Boolean] skip_confirm (default: false) If set, will skip the confirmation prompt before running the rest of the lane
+  # @param [String] track (default: 'production') The Google Play track the release was published to in Google Play Console. Must be either `beta` or `production`.
+  #        If 'production': The GitHub Release will be expected to have a title like `X.Y`, and this lane will also delete the release branch after publishing the GitHub Release.
+  #        If 'beta': The draft GitHub Release will be expected to have a title like `X.Y-rc-N`. The release branch will NOT be deleted for those.
   #
-  lane :publish_release do |skip_confirm: false|
+  lane :publish_gh_release do |skip_confirm: false, track: 'production'|
     ensure_git_status_clean
     ensure_git_branch(branch: '^release/')
 
-    version_number = release_version_current
+    is_final_release = track.to_s.downcase == 'production'
+    version_number = is_final_release ? release_version_current : version_name_current
 
     current_branch = "release/#{version_number}"
-    next_release_branch = "release/#{release_version_next}"
 
-    UI.important <<~PROMPT
-      Publish the #{version_number} release. This will:
-      - Publish the existing draft `#{version_number}` release on GitHub
-      - Which will also have GitHub create the associated git tag, pointing to the tip of the branch
-      - If the release branch for the next version `#{next_release_branch}` already exists, backmerge `#{current_branch}` into it
-      - If needed, backmerge `#{current_branch}` back into `#{DEFAULT_BRANCH}`
-      - Delete the `#{current_branch}` branch
+    prompt = <<~PROMPT
+      Publish the #{version_number} GitHub release. This will:
+       - Publish the existing draft `#{version_number}` release on GitHub
+       - Which will also have GitHub create the associated git tag, pointing to the tip of the branch
     PROMPT
+    prompt += " - Delete the `#{current_branch}` branch" if is_final_release
+    UI.important(prompt)
     UI.user_error!("Terminating as requested. Don't forget to run the remainder of this automation manually.") unless skip_confirm || UI.confirm('Do you want to continue?')
 
     UI.important "Publishing release #{version_number} on GitHub"
@@ -449,6 +485,8 @@ platform :android do
       repository: GITHUB_REPO,
       name: version_number
     )
+
+    next unless is_final_release
 
     # At this point, an intermediate branch has been created by creating a backmerge PR to a hotfix or the next version release branch.
     # This allows us to safely delete the `release/*` remote branch.
@@ -494,6 +532,7 @@ platform :android do
     version = version_name_current
     build_code = build_code_current
     is_beta = beta_version?(version)
+
     unless skip_prechecks
       # Match branch names that begin with `release/`
       # Skip this check on CI because that action relies on CI env vars, but when this lane is called as part of `code_freeze` the branch changed since the CI build started, so that wouldn't work
@@ -543,7 +582,7 @@ platform :android do
   # @param version [String] The version to create
   # @param build_code [String] The build code to create
   # @param app [String] The Android app to build (i.e 'app', 'automotive', or 'wear')
-  lane :build_bundle do |version:, build_code:, app:|
+  lane :build_bundle do |app:, version: version_name_current, build_code: build_code_current|
     aab_artifact_path = aab_artifact_path(app, version)
     build_dir = 'artifacts/'
 
@@ -560,8 +599,12 @@ platform :android do
       }
     )
 
+    aab_file = File.join(PROJECT_ROOT_FOLDER, bundle_output_path(app))
+    annotate_sentry_mapping_uuid(app: app, aab_file: aab_file)
+
     Dir.chdir('..') do
-      sh("mkdir -p #{build_dir} && cp -v #{bundle_output_path(app)} #{aab_artifact_path}")
+      FileUtils.mkdir_p(build_dir)
+      FileUtils.cp_r(aab_file, aab_artifact_path)
       UI.message("Bundle ready: #{aab_artifact_path}")
     end
   end
@@ -601,7 +644,7 @@ platform :android do
       body: '🚧 Prototype builds will be available soon'
     )
 
-    prototype_build_type = 'debugProd'
+    prototype_build_type = 'DebugProd'
 
     gradle(
       task: 'assemble',
@@ -639,6 +682,43 @@ platform :android do
     )
   end
 
+  # Builds a prototype build and uploads it to Firebase App Distribution (FAD)
+  #
+  lane :build_and_upload_prototype_build_fad do
+    UI.user_error!("'FIREBASE_APP_DISTRIBUTION_ACCOUNT_KEY' must be defined as an environment variable.") unless ENV['FIREBASE_APP_DISTRIBUTION_ACCOUNT_KEY']
+
+    # 'Pull Request' and 'Branch' is always going to point to 'N/A' and 'main' respectively.
+    # No matter, it's better to have this setup ready for when and if we ever run this lane for PR builds as well.
+    release_notes = <<~NOTES
+      Pull Request: ##{pull_request_number || 'N/A'}
+      Branch: `#{ENV.fetch('BUILDKITE_BRANCH', 'N/A')}`
+      Commit: #{ENV.fetch('BUILDKITE_COMMIT', 'N/A')[0...7]}
+    NOTES
+
+    prototype_build_type = 'Prototype'
+
+    gradle(
+      task: 'app:assemble',
+      build_type: prototype_build_type,
+      properties: {
+        'skipSentryProguardMappingUpload' => true
+      }
+    )
+
+    firebase_app_distribution(
+      app: FIREBASE_APP_ID,
+      service_credentials_json_data: ENV.fetch('FIREBASE_APP_DISTRIBUTION_ACCOUNT_KEY', nil),
+      release_notes: release_notes,
+      groups: FIREBASE_TESTERS_GROUP
+    )
+  end
+
+  def pull_request_number
+    # Buildkite sets this env var to the PR number if on a PR, but to 'false' (and not nil) if not on a PR
+    pr_num = ENV.fetch('BUILDKITE_PULL_REQUEST', 'false')
+    pr_num == 'false' ? nil : Integer(pr_num)
+  end
+
   def get_app_key(apk_path:)
     File.basename(apk_path).split('-').first
   end
@@ -673,6 +753,7 @@ platform :android do
   #
   # @param version [Hash<String>] The version to create. Expects keys "name" and "code"
   # @param prerelease [Bool] If true, the GitHub Release will have the prerelease flag
+  # @param release_assets [Array<String>] The assets to attach to the GitHub Release
   #
   private_lane :create_gh_release do |version:, prerelease: false, release_assets: []|
     create_github_release(
@@ -680,7 +761,7 @@ platform :android do
       version: version,
       release_notes_file_path: EXTRACTED_RELEASE_NOTES_PATH,
       prerelease: prerelease,
-      is_draft: !prerelease,
+      is_draft: true,
       release_assets: release_assets.join(',')
     )
   end
@@ -707,7 +788,26 @@ platform :android do
   end
 
   def bundle_output_path(app)
-    "#{app}/build/outputs/bundle/release/#{app}-release.aab"
+    File.join(app.to_s, 'build', 'outputs', 'bundle', 'release', "#{app}-release.aab")
+  end
+
+  def annotate_sentry_mapping_uuid(app:, aab_file:)
+    sentry_props = sh('unzip', '-p', aab_file, 'base/assets/sentry-debug-meta.properties', step_name: 'Extract sentry-debug-meta.properties') do |status, result, _|
+      status.success? ? result : nil
+    end
+    if sentry_props.nil?
+      UI.important("Unable to extract Sentry properties file from #{aab_file}. Skipping annotating the build with the mapping UUID.")
+      return
+    end
+
+    line = sentry_props.split("\n").find { |l| l.start_with?('io.sentry.ProguardUuids=') }
+    if line.nil?
+      UI.error("`io.sentry.ProguardUuids` line not found in #{aab_file}'s `sentry-debug-meta.properties` file")
+      return
+    end
+
+    uuid = line.split('=', 2).last.strip
+    buildkite_annotate(style: 'info', context: "sentry-mapping-uuid-#{app}", message: "Sentry mapping UUID for #{app}: #{uuid}")
   end
 
   def firebase_secret(name:)
@@ -773,28 +873,16 @@ platform :android do
     VERSION_FORMATTER.beta_version(current_version)
   end
 
-  # Returns the beta version that is used by the code freeze
-  # It first increments the minor number, which also resets the build number to 0
-  # It then bumps the build number so the -rc-1 can be appended to the code freeze version
-  def beta_version_code_freeze
-    # Read the current release version from the version.properties file and parse it into an AppVersion object
-    current_version = VERSION_FORMATTER.parse(version_name_current)
-    # Calculate the next major version number
-    next_version = VERSION_CALCULATOR.next_release_version(version: current_version)
-    # Calculate the next build number
-    beta_version_code_freeze = VERSION_CALCULATOR.next_build_number(version: next_version)
-    # Return the formatted release version
-    VERSION_FORMATTER.beta_version(beta_version_code_freeze)
-  end
-
-  # Returns the beta version of the app in the format `1.2-rc-1`
+  # Returns the next beta version in the format `1.2-rc-2` (increments the build number)
   #
-  def beta_version_next
-    # Read the current release version from `version.properties` and parse it into an AppVersion object
-    current_version = VERSION_FORMATTER.parse(version_name_current)
-    # Calculate the next beta version
+  def beta_version_next(version_name: nil)
+    # Use provided version or read the current version from version.properties
+    version_name ||= version_name_current
+    # Parse the version string (e.g., "1.2-rc-1") into an AppVersion object
+    current_version = VERSION_FORMATTER.parse(version_name)
+    # Increment the build number to get the next beta version
     beta_version_next = VERSION_CALCULATOR.next_build_number(version: current_version)
-    # Return the formatted release version
+    # Format as beta version (e.g., "1.2-rc-2")
     VERSION_FORMATTER.beta_version(beta_version_next)
   end
 
@@ -848,5 +936,16 @@ platform :android do
     else
       is_beta ? PLAY_STORE_TRACK_BETA : PLAY_STORE_TRACK_PRODUCTION
     end
+  end
+
+  def ensure_branch_does_not_exist!(branch_name)
+    return unless Fastlane::Helper::GitHelper.branch_exists_on_remote?(branch_name: branch_name)
+
+    error_message = "The branch `#{branch_name}` already exists. Please check first if there is an existing Pull Request that needs to be merged or closed first, " \
+                    'or delete the branch to then run again the release task.'
+
+    buildkite_annotate(style: 'error', context: 'error-checking-branch', message: error_message) if is_ci
+
+    UI.user_error!(error_message)
   end
 end

@@ -42,10 +42,8 @@ interface EpisodeManager {
     fun findEpisodesByPodcastOrderedRxFlowable(podcast: Podcast): Flowable<List<PodcastEpisode>>
     fun findEpisodesWhereRxFlowable(queryAfterWhere: String): Flowable<List<PodcastEpisode>>
 
-    fun findEpisodesToSyncBlocking(): List<PodcastEpisode>
     suspend fun findEpisodesToSync(): List<PodcastEpisode>
     fun findEpisodesForHistorySyncBlocking(): List<PodcastEpisode>
-    suspend fun markAllEpisodesSynced(episodes: List<PodcastEpisode>)
 
     fun findEpisodesDownloadingBlocking(queued: Boolean = true, waitingForPower: Boolean = true, waitingForWifi: Boolean = true, downloading: Boolean = true): List<PodcastEpisode>
 
@@ -112,14 +110,16 @@ interface EpisodeManager {
     suspend fun deleteEpisodesWithoutSync(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager)
 
     fun deleteEpisodeWithoutSyncBlocking(episode: PodcastEpisode?, playbackManager: PlaybackManager)
-    suspend fun deleteEpisodeFile(episode: BaseEpisode?, playbackManager: PlaybackManager?, disableAutoDownload: Boolean, updateDatabase: Boolean = true, removeFromUpNext: Boolean = true, shouldShuffleUpNext: Boolean = false)
+    suspend fun deleteEpisodeFile(episode: BaseEpisode?, playbackManager: PlaybackManager?, disableAutoDownload: Boolean, updateDatabase: Boolean = true)
 
     /** Utility methods  */
     suspend fun countEpisodes(): Int
     fun countEpisodesWhereBlocking(queryAfterWhere: String): Int
     fun downloadMissingEpisodeRxMaybe(episodeUuid: String, podcastUuid: String, skeletonEpisode: PodcastEpisode, podcastManager: PodcastManager, downloadMetaData: Boolean, source: SourceView): Maybe<BaseEpisode>
 
-    fun deleteEpisodesAsync(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager)
+    fun deleteEpisodeFilesAsync(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager)
+    suspend fun deleteEpisodeFiles(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager)
+
     fun unarchiveAllInListBlocking(episodes: List<PodcastEpisode>)
     fun findPlaybackHistoryEpisodesRxFlowable(): Flowable<List<PodcastEpisode>>
     fun filteredPlaybackHistoryEpisodesFlow(query: String): Flow<List<PodcastEpisode>>
@@ -134,7 +134,6 @@ interface EpisodeManager {
     fun setDownloadFailedBlocking(episode: BaseEpisode, errorMessage: String)
     fun episodeCountRxFlowable(queryAfterWhere: String): Flowable<Int>
     suspend fun updatePlaybackInteractionDate(episode: BaseEpisode?)
-    suspend fun deleteEpisodeFiles(episodes: List<PodcastEpisode>, playbackManager: PlaybackManager, removeFromUpNext: Boolean = true)
     suspend fun findStaleDownloads(): List<PodcastEpisode>
     suspend fun calculatePlayedUptoSumInSecsWithinDays(days: Int): Double
 

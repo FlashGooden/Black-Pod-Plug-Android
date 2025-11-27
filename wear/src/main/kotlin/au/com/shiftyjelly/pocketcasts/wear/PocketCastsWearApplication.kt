@@ -15,8 +15,6 @@ import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationHelp
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
-import au.com.shiftyjelly.pocketcasts.repositories.podcast.SmartPlaylistManager
-import au.com.shiftyjelly.pocketcasts.repositories.sync.SyncManager
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
 import au.com.shiftyjelly.pocketcasts.shared.AppLifecycleObserver
 import au.com.shiftyjelly.pocketcasts.shared.DownloadStatisticsReporter
@@ -24,6 +22,7 @@ import au.com.shiftyjelly.pocketcasts.utils.TimberDebugTree
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import au.com.shiftyjelly.pocketcasts.utils.log.RxJavaUncaughtExceptionHandling
 import com.google.firebase.FirebaseApp
+import com.squareup.moshi.Moshi
 import dagger.hilt.android.HiltAndroidApp
 import java.io.File
 import java.util.concurrent.Executors
@@ -38,6 +37,8 @@ class PocketCastsWearApplication :
     Application(),
     Configuration.Provider {
 
+    @Inject lateinit var moshi: Moshi
+
     @Inject lateinit var appLifecycleObserver: AppLifecycleObserver
 
     @Inject lateinit var downloadManager: DownloadManager
@@ -48,11 +49,7 @@ class PocketCastsWearApplication :
 
     @Inject lateinit var playbackManager: PlaybackManager
 
-    @Inject lateinit var smartPlaylistManager: SmartPlaylistManager
-
     @Inject lateinit var podcastManager: PodcastManager
-
-    @Inject lateinit var syncManager: SyncManager
 
     @Inject lateinit var settings: Settings
 
@@ -97,7 +94,7 @@ class PocketCastsWearApplication :
 
             withContext(Dispatchers.Default) {
                 playbackManager.setup()
-                downloadManager.setup(episodeManager, podcastManager, smartPlaylistManager, playbackManager)
+                downloadManager.setup(episodeManager, podcastManager, playbackManager)
 
                 val storageChoice = settings.getStorageChoice()
                 if (storageChoice == null) {
@@ -113,10 +110,9 @@ class PocketCastsWearApplication :
             }
 
             VersionMigrationsWorker.performMigrations(
-                podcastManager = podcastManager,
-                settings = settings,
-                syncManager = syncManager,
                 context = this@PocketCastsWearApplication,
+                settings = settings,
+                moshi = moshi,
             )
         }
 
